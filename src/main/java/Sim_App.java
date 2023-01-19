@@ -113,7 +113,7 @@ public class Sim_App extends Frame {
     static CustomButton clearTerminalBtn;
     static CustomButton stopBtn;
 
-    static CustomCheckbox autoResume;
+    static CustomToggleButton go_Toggle_Button;
     static CustomCheckbox results_per_step_btn;
     static CustomCheckbox results_per_cycle_btn;
     static CustomCheckbox spatial_direction_btn;
@@ -211,7 +211,7 @@ public class Sim_App extends Frame {
                     Headless_Init();
                     Core.init();
                     System.out.println("Start Optimizing");
-                    Sim_App.autoResume.setState(true);
+                    Sim_App.go_Toggle_Button.setClicked(true);
                 } catch (Exception e) {
                     e.printStackTrace();
                     // At this point we can close the program
@@ -467,9 +467,11 @@ public class Sim_App extends Frame {
         add((TextArea) Sim_App.rangingModel_Frame.getTextArea());
 
 
-        Sim_App.autoResume = new CustomCheckbox("GO", false, null);
-        Sim_App.autoResume.setBounds(c1_x, r2_y + 66 + tiny_gap, c1_content_width, small_text_height);
-        add((Checkbox) Sim_App.autoResume.getCheckbox());
+
+        Sim_App.go_Toggle_Button = new CustomToggleButton("GO");
+        Sim_App.go_Toggle_Button.setVisible(false);
+        Sim_App.go_Toggle_Button.setBounds(c1_x, r2_y + 66 + tiny_gap, c1_content_width, medium_text_height);
+        add((JToggleButton) Sim_App.go_Toggle_Button.getToggleButton());
 
 
         // This Section is for the "Optimization's parameters:"
@@ -675,7 +677,7 @@ public class Sim_App extends Frame {
         Sim_App.resumeBtn = new CustomButton();
         Sim_App.stopBtn = new CustomButton();
         Sim_App.stopBtn.addActionListener(new stopBtnAdapter());
-        Sim_App.autoResume = new CustomCheckbox("GO", false);
+        Sim_App.go_Toggle_Button = new CustomToggleButton("GO");
         Sim_App.projectName_inputTextField = new CustomTextField(Sim_App.evaluated_scenario_name);
 
         // On the very first iteration, ensure that folder structure is as supposed to be
@@ -920,7 +922,9 @@ public class Sim_App extends Frame {
             Sim_App.loaded_db_name_LabelArea.setBackground(Color.white);
             Sim_App.loaded_db_name_LabelArea.setText(evaluated_scenario_name + " at " + input_file_path);
 
-            System.out.println(evaluated_scenario_name + " database in " + input_file_path + " loaded."); // TODO: Add it on terminal
+            Sim_App.go_Toggle_Button.setVisible(true);
+
+            //System.out.println(evaluated_scenario_name + " database in " + input_file_path + " loaded."); // TODO: Add it on terminal
 
         }
     }
@@ -937,7 +941,7 @@ public class Sim_App extends Frame {
         Sim_App.t1 = new Thread(() -> {
             Sim_App.resumeBtn.setEnabled(false);
             Sim_App.stopBtn.setEnabled(true);
-            Sim_App.autoResume.setEnabled(false);
+            Sim_App.go_Toggle_Button.setEnabled(false);
             Sim_App.stopBtn.setVisible(true);
             Sim_App.resumeBtn.setVisible(false);
 
@@ -992,7 +996,7 @@ public class Sim_App extends Frame {
             set_properties_as_available(true);
             Sim_App.stopBtn.setEnabled(false);
             Sim_App.resumeBtn.setEnabled(true);
-            Sim_App.autoResume.setEnabled(true);
+            Sim_App.go_Toggle_Button.setEnabled(true);
             Sim_App.resumeBtn.setVisible(true);
             Sim_App.stopBtn.setVisible(false);
         });
@@ -1027,7 +1031,7 @@ public class Sim_App extends Frame {
 
     static void stop_optimization(){
         Sim_App.stopBtn.setEnabled(false);
-        Sim_App.autoResume.setState(false);
+        Sim_App.go_Toggle_Button.setClicked(false);
 
         Date date = new Date();
 
@@ -1094,7 +1098,7 @@ public class Sim_App extends Frame {
             //System.out.println("Sim_App.autoResume.getState():" + Sim_App.autoResume.getState() + " Sim_App.autoResume.isEnabled():" + Sim_App.autoResume.isEnabled());
 
             // Check if the user has just enabled the auto resumer
-            if (Sim_App.autoResume.getState() && Sim_App.autoResume.isEnabled()){
+            if (Sim_App.go_Toggle_Button.isClicked() && Sim_App.go_Toggle_Button.isEnabled()){
                 resume();
             }
         };
