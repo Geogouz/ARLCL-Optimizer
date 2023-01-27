@@ -14,7 +14,7 @@ public class MapField {
         boolean first_check = true;
 
         // Loop throughout all Nodes
-        for (Node node: Sim_App.nodeID_to_nodeObject.values()){
+        for (Node node: SimApp.nodeID_to_nodeObject.values()){
 
             if (first_check){
                 first_check = false;

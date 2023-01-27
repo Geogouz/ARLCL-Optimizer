@@ -17,11 +17,11 @@ class MathEngine {
 
     static String NodePos_Results_filename;
 
-    static Optimizer[] swarmPositioningOptimizers = new Optimizer[Sim_App.threads];
+    static Optimizer[] swarmPositioningOptimizers = new Optimizer[SimApp.threads];
 
     static void create_the_optimizers(){
         // Generate as many Optimizers as the available Cores on the machine
-        for (int thread = 0; thread< Sim_App.threads; thread++){
+        for (int thread = 0; thread< SimApp.threads; thread++){
             // Generate a new optimizer and add it to the thread mapper
             swarmPositioningOptimizers[thread] = new Optimizer();
         }
@@ -31,7 +31,7 @@ class MathEngine {
         SimpleRegression regr = new SimpleRegression();
 
         // First compute the regression
-        for (Node current_Node: Sim_App.nodeID_to_nodeObject.values()) {
+        for (Node current_Node: SimApp.nodeID_to_nodeObject.values()) {
             regr.addData(current_Node.current_relative_x, current_Node.current_relative_y);
         }
 
@@ -45,7 +45,7 @@ class MathEngine {
         double maxY = Double.MIN_VALUE;
 
         // Rotate all Nodes according to the calculated slope
-        for (Node current_Node: Sim_App.nodeID_to_nodeObject.values()) {
+        for (Node current_Node: SimApp.nodeID_to_nodeObject.values()) {
 
             final double newX = (current_Node.current_relative_x)*Math.cos(rad_rotation) - (current_Node.current_relative_y-y_intercept)*Math.sin(rad_rotation);
             final double newY = (current_Node.current_relative_x)*Math.sin(rad_rotation) + (current_Node.current_relative_y-y_intercept)*Math.cos(rad_rotation);
@@ -74,7 +74,7 @@ class MathEngine {
         final double swarmCenterY = -(minY + ((maxY - minY)/2));
 
         // After having rotated all Nodes, we will displace them so that their mass center is at 0,0
-        for (Node current_Node: Sim_App.nodeID_to_nodeObject.values()) {
+        for (Node current_Node: SimApp.nodeID_to_nodeObject.values()) {
             current_Node.current_relative_x = current_Node.current_relative_x + swarmCenterX;
             current_Node.current_relative_y = current_Node.current_relative_y + swarmCenterY;
         }
@@ -85,12 +85,12 @@ class MathEngine {
 
         List<Integer> orderedByLastCycleOrientation_NodeIDs = new ArrayList<>();
 
-        Integer[] nodeIDs = new Integer[Sim_App.nodeID_to_nodeObject.size()];
-        double[] posX = new double[Sim_App.nodeID_to_nodeObject.size()];
+        Integer[] nodeIDs = new Integer[SimApp.nodeID_to_nodeObject.size()];
+        double[] posX = new double[SimApp.nodeID_to_nodeObject.size()];
 
-        for (int i = 0; i< Sim_App.nodeID_to_nodeObject.size(); i++){
+        for (int i = 0; i< SimApp.nodeID_to_nodeObject.size(); i++){
             nodeIDs[i] = i;
-            posX[i] = Sim_App.nodeID_to_nodeObject.get(i+1).current_relative_x;
+            posX[i] = SimApp.nodeID_to_nodeObject.get(i+1).current_relative_x;
         }
 
         Arrays.sort(nodeIDs, Comparator.comparingDouble(o -> posX[o]));
@@ -108,7 +108,7 @@ class MathEngine {
         ArrayList productLikelihoodComponents = null;
 
         // Check if the user has selected to export also the ProductLikelihood
-        if (Sim_App.headless_mode || Sim_App.export_ProductLikelihood_WolframPlot_btn.getState()){
+        if (SimApp.headless_mode || SimApp.export_ProductLikelihood_WolframPlot_function_btn.getState()){
             // Create the Wolfram CMD
             productLikelihoodComponents = collect_ProductLikelihoodComponents(current_node);
         }
@@ -137,11 +137,11 @@ class MathEngine {
 
         String temp_currentNode_component = null;
 
-        for (Node remote_node: Sim_App.nodeID_to_nodeObject.values()){
+        for (Node remote_node: SimApp.nodeID_to_nodeObject.values()){
             // Make sure we are not considering the same
             if (remote_node.id != current_node.id){
                 // Check if this remote Node is among the effective ones
-                if (Sim_App.effective_remoteNodes.contains(remote_node.id)){
+                if (SimApp.effective_remoteNodes.contains(remote_node.id)){
                     temp_EffectiveNode_Pos_component.append("{" + remote_node.current_relative_x + ", " + remote_node.current_relative_y + "}, ");
                     temp_EffectiveNode_Labels_component.append(remote_node.id + ", ");
                 }
@@ -214,7 +214,7 @@ class MathEngine {
 
         // Make a check here to see if the list containing the effective_nodes has the same size as the entire Node db-1
         // This means that there is no non-Effective Node. Hence, we need to exclude Plot B
-        if (Sim_App.effective_remoteNodes.size() == (Sim_App.nodeID_to_nodeObject.size()-1)){
+        if (SimApp.effective_remoteNodes.size() == (SimApp.nodeID_to_nodeObject.size()-1)){
             positionsCanvasPlot_WolframCMD_ArrayListContainer.add(temp_EffectiveNode_Pos_component.append(temp_currentNode_component).toString());
         }
         else{
@@ -228,11 +228,11 @@ class MathEngine {
 
         ArrayList productLikelihoodComponents = new ArrayList<>();
 
-        for (Node remote_node: Sim_App.nodeID_to_nodeObject.values()){
+        for (Node remote_node: SimApp.nodeID_to_nodeObject.values()){
             // Make sure we are not considering the same
             if (remote_node.id != current_node.id){
                 // Check if this remote Node is among the effective ones
-                if (Sim_App.effective_remoteNodes.contains(remote_node.id)){
+                if (SimApp.effective_remoteNodes.contains(remote_node.id)){
                     remote_node.cdl.update_ProductLikelihoodComponent_WolframOBJ();
                     productLikelihoodComponents.add(remote_node.cdl.ProductLikelihoodComponent_WolframOBJ);
                 }
@@ -243,20 +243,20 @@ class MathEngine {
 
     static void publish_results(int cycle, int step, Node currentNode){
 
-        System.out.println("Publishing: " + Sim_App.evaluated_scenario_name + " Cycle:" + cycle);
+        System.out.println("Publishing: " + SimApp.clean_evaluated_scenario_name + " Cycle:" + cycle);
 
         //if (cycle == Sim_App.stop_cycles || cycle == 10 || cycle == 20 || cycle == 30 || cycle == 40 || cycle == 50 || cycle == 60 || cycle == 70 || cycle == 80 || cycle == 90){
-        if (cycle == Sim_App.optimization_cycles || cycle == 50 || cycle == 100 || cycle == 150 || cycle == 200 || cycle == 250){
-            String NodePos_CMD_filename = Sim_App.output_iterated_results_folder_path + "/Positions_c" + cycle + "_s" + step + "_n" + currentNode.id + ".txt";
-            String NodePos_Plot_filename = Sim_App.output_iterated_results_folder_path + "/Positions_c" + cycle + "_s" + step + "_n" + currentNode.id + ".jpeg";
-            NodePos_Results_filename = Sim_App.output_iterated_results_folder_path + "/results.log";
+        if (cycle == SimApp.optimization_cycles || cycle == 50 || cycle == 100 || cycle == 150 || cycle == 200 || cycle == 250){
+            String NodePos_CMD_filename = SimApp.output_iterated_results_folder_path + "/Positions_c" + cycle + "_s" + step + "_n" + currentNode.id + ".txt";
+            String NodePos_Plot_filename = SimApp.output_iterated_results_folder_path + "/Positions_c" + cycle + "_s" + step + "_n" + currentNode.id + ".jpeg";
+            NodePos_Results_filename = SimApp.output_iterated_results_folder_path + "/results.log";
 
             ArrayList<String>[] mathematica_plot_components = collect_Individual_Mathematica_Plot_Components(currentNode);
 
             String ProductLikelihood_WolframCMD = "";
 
             // Check if the user has selected to export also the ProductLikelihood
-            if (Sim_App.headless_mode || Sim_App.export_ProductLikelihood_WolframPlot_btn.getState()){
+            if (SimApp.headless_mode || SimApp.export_ProductLikelihood_WolframPlot_function_btn.getState()){
                 // Create the Wolfram command
                 ProductLikelihood_WolframCMD = build_ProductLikelihood_WolframCMD(mathematica_plot_components[1]);
             }
@@ -266,7 +266,7 @@ class MathEngine {
 
             //Add to below (If we want to show also likelihood)
             boolean export_likelihood = false;
-            if (Sim_App.headless_mode || Sim_App.export_ProductLikelihood_WolframPlot_btn.getState()){
+            if (SimApp.headless_mode || SimApp.export_ProductLikelihood_WolframPlot_function_btn.getState()){
                 // Generate the final Wolfram command which we need to execute
                 NodePos_WolframExportCMD = build_Export_WolframCMD(ProductLikelihood_WolframCMD + mathematica_plot_components[0].get(0), NodePos_Plot_filename, "model, ");
                 export_likelihood = true;
@@ -277,10 +277,10 @@ class MathEngine {
             }
 
             // Export the String to a file
-            Sim_App.writeString2File(NodePos_CMD_filename, NodePos_WolframExportCMD, export_likelihood);
+            SimApp.writeString2File(NodePos_CMD_filename, NodePos_WolframExportCMD, export_likelihood);
 
-            Sim_App.rendering_wolfram_data = true;
-            Sim_App.rendering_wolfram_data = false;
+            SimApp.rendering_wolfram_data = true;
+            SimApp.rendering_wolfram_data = false;
         }
 
         // todo: GUI_App.update_canvas_plot(NodePos_Plot_filename);
@@ -306,7 +306,7 @@ class MathEngine {
         plot_cmd = plot_cmd + "model = ContourPlot[r[distanceX, distanceY], " +
                 "{distanceX, " + MapField.global_minPlotX + ", " + MapField.global_maxPlotX + "}, " +
                 "{distanceY, " + MapField.global_minPlotY + ", " + MapField.global_maxPlotY + "}, " +
-                "PlotPoints -> {" + Integer.valueOf(Sim_App.plotResolution_inputTextField.getText()) + ", " + Integer.valueOf(Sim_App.plotResolution_inputTextField.getText()) + "}, " +
+                "PlotPoints -> {" + Integer.valueOf(SimApp.plotResolution_inputTextField.getText()) + ", " + Integer.valueOf(SimApp.plotResolution_inputTextField.getText()) + "}, " +
                 "MaxRecursion -> 1, " +
                 "PlotRange -> Full, " +
                 "ClippingStyle -> None, " +
@@ -322,7 +322,7 @@ class MathEngine {
     private static String build_Export_WolframCMD(String cmd_to_export, String filename, String extra_items_to_show){
         // Make a check here to see if the list containing the effective_nodes has the same size as the entire Node db-1
         // This means that there is no non-Effective Node. Hence, we need to exclude Plot B
-        if (Sim_App.effective_remoteNodes.size() == (Sim_App.nodeID_to_nodeObject.size()-1)){
+        if (SimApp.effective_remoteNodes.size() == (SimApp.nodeID_to_nodeObject.size()-1)){
             return cmd_to_export + "\nExport[\"export/" + filename + "\", Show[" + extra_items_to_show + "plotA, plotC], ImageSize -> {1600, 1000}, \"CompressionLevel\" -> 0]";
         }
         else{
@@ -364,15 +364,15 @@ class MathEngine {
         //System.out.println(Arrays.toString(best_params));
 
         if (best_params.length == 0){
-            Sim_App.append_to_text_area("Optimization was not successful for current node.");
+            SimApp.appendToTextArea("Optimization was not successful for current node.");
             return(null);
         }
         else{
-            Sim_App.append_to_text_area("Cycle:" + cycleCounter + " " +
+            SimApp.appendToTextArea("Cycle:" + cycleCounter + " " +
                     "   Step:" + stepCounter + " " +
                     "   Node:" + currentNode.id + " " +
-                    "   Pos: [x= " + Sim_App.two_decimals_formatter.format(best_params[0]).replace(",", ".") +
-                    ", y= " + Sim_App.two_decimals_formatter.format(best_params[1]).replace(",", ".") + "]");
+                    "   Pos: [x= " + SimApp.two_decimals_formatter.format(best_params[0]).replace(",", ".") +
+                    ", y= " + SimApp.two_decimals_formatter.format(best_params[1]).replace(",", ".") + "]");
                     // "   Score: " + likelihood_formatter(bestLikelihood));
 
             // get values at optimum
@@ -443,10 +443,10 @@ class CircularDistanceLikelihood implements MaximisationFunction{
     void update_Measurement_and_ExtentReach(double measurement){
         this.measurement = measurement;
 
-        this.minPlotX = attachedNode.current_relative_x - Sim_App.max_distance;
-        this.maxPlotX = attachedNode.current_relative_x + Sim_App.max_distance;
-        this.minPlotY = attachedNode.current_relative_y - Sim_App.max_distance;
-        this.maxPlotY = attachedNode.current_relative_y + Sim_App.max_distance;
+        this.minPlotX = attachedNode.current_relative_x - SimApp.max_distance;
+        this.maxPlotX = attachedNode.current_relative_x + SimApp.max_distance;
+        this.minPlotY = attachedNode.current_relative_y - SimApp.max_distance;
+        this.maxPlotY = attachedNode.current_relative_y + SimApp.max_distance;
     }
 }
 
@@ -464,8 +464,8 @@ class Optimizer extends Thread {
             // simplification 1
             //double total_likelihood = 1.D;
 
-            for (int nodeID: Sim_App.effective_remoteNodes){
-                Node remoteNode = Sim_App.nodeID_to_nodeObject.get(nodeID);
+            for (int nodeID: SimApp.effective_remoteNodes){
+                Node remoteNode = SimApp.nodeID_to_nodeObject.get(nodeID);
                 double likelihood = remoteNode.cdl.function(coordinates);
 
                 // simplification 2
@@ -497,8 +497,8 @@ class Optimizer extends Thread {
     flanagan.math.Maximisation NodePosMax = new flanagan.math.Maximisation(); // flanagan.math.Minimisation NodePosMax = new flanagan.math.Minimisation();
 
     final PositionLikelihood position_likelihood;
-    final long optimization_time = Integer.parseInt(Sim_App.max_optimization_time_inputTextField.getText());
-    final Double initial_step_size = Double.parseDouble(Sim_App.initial_step_size_inputTextField.getText());
+    final long optimization_time = Integer.parseInt(SimApp.max_optimization_time_per_thread_inputTextField.getText());
+    final Double initial_step_size = Double.parseDouble(SimApp.initial_step_size_inputTextField.getText());
 
     // simplification 1
     double optimal_probability = Double.NEGATIVE_INFINITY; // POSITIVE_INFINITY // Double.NEGATIVE_INFINITY;
@@ -521,10 +521,10 @@ class Optimizer extends Thread {
         // This check can be used to set a time constraint for the optimization
         while (System.currentTimeMillis() < stop_time) {
 
-            for (int optimization_iteration = 0; optimization_iteration< Sim_App.optimization_iterations; optimization_iteration++){
+            for (int optimization_iteration = 0; optimization_iteration< SimApp.optimization_iterations_per_thread; optimization_iteration++){
 
-                double randomX = MapField.global_minPlotX + Sim_App.random.nextDouble() * (MapField.global_maxPlotX - MapField.global_minPlotX);
-                double randomY = MapField.global_minPlotY + Sim_App.random.nextDouble() * (MapField.global_maxPlotY - MapField.global_minPlotY);
+                double randomX = MapField.global_minPlotX + SimApp.random.nextDouble() * (MapField.global_maxPlotX - MapField.global_minPlotX);
+                double randomY = MapField.global_minPlotY + SimApp.random.nextDouble() * (MapField.global_maxPlotY - MapField.global_minPlotY);
 
                 //System.out.println(randomX + ", " + randomY);
 
@@ -536,7 +536,7 @@ class Optimizer extends Thread {
                 double[] step = {initial_step_size, initial_step_size};
 
                 // convergence tolerance
-                double ftol = Sim_App.ftol;
+                double ftol = SimApp.ftol;
 
                 // Nelder and Mead optimization procedure
                 NodePosMax.nelderMead(position_likelihood, start, step, ftol);
