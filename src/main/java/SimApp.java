@@ -6,7 +6,6 @@ import java.awt.geom.AffineTransform;
 import java.awt.image.AffineTransformOp;
 import java.awt.image.BufferedImage;
 import java.io.*;
-import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -25,6 +24,8 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
 public class SimApp extends Frame {
+
+    static String[] wolfram_engine_args;
 
     static boolean headless_mode;
 
@@ -124,12 +125,12 @@ public class SimApp extends Frame {
     static CustomCheckbox results_per_step_btn;
     static CustomCheckbox results_per_cycle_btn;
     static CustomCheckbox spatial_direction_btn;
-    static CustomCheckbox rss_density_check_btn;
     static CustomCheckbox ble_model_btn;
     static CustomCheckbox uwb_model_btn;
     static CustomCheckbox export_ProductLikelihood_WolframPlot_function_btn;
 
     static Thread t1;
+    static Thread controller_thread;
 
     static SimpleDateFormat day_formatter = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss");
 
@@ -213,8 +214,57 @@ public class SimApp extends Frame {
         }
         else {
             System.out.println("Executing ARLCL Optimizer in GUI mode");
-            new SimApp();
+
+            // We ensure first that the required wolfram math executable is available right next to the optimizer's Jar
+            try {
+                ensureWolframEngineAvailability();
+                new SimApp();
+            } catch (Exception e) {
+                System.out.println("Failed extracting WolframEngine");
+                throw new RuntimeException(e);
+            }
         }
+    }
+
+    private static void ensureWolframEngineAvailability() throws Exception {
+        // Get path of the JAR file
+        String jarPath = MathEngine.class
+                .getProtectionDomain()
+                .getCodeSource()
+                .getLocation()
+                .toURI()
+                .getPath();
+
+        String wolframPath = new File(jarPath).getParentFile().toString();
+        String wolfram_engine_path = Paths.get(wolframPath, "wolfram.exe").toString();
+
+        System.out.println("Exporting wolfram math at: " + wolfram_engine_path);
+
+        InputStream is = SimApp.class.getResourceAsStream("wolfram/JLink/13.0/SystemFiles/Libraries/Windows-x86-64/wolfram_win.exe");
+        File file = new File(wolfram_engine_path);
+        FileOutputStream fos = new FileOutputStream(file);
+        byte[] buffer = new byte[4096];
+        int length;
+        while ((length = is.read(buffer)) > 0) {
+            fos.write(buffer, 0, length);
+        }
+        fos.close();
+        is.close();
+
+        // TODO clean
+        //static final String[] wolfram_args_windows = 2 SampleProgram 3 4
+        //static final String[] wolfram_args_linux = -classpath .:../../JLink.jar SampleProgram 3 -linkname 'math -mathlink'
+        //static final String[] wolfram_args_mac = -classpath .:../../JLink.jar SampleProgram 3 -linkname '"/Applications/Mathematica.app/Contents/MacOS/MathKernel" -mathlink'
+
+        // Args for using Wolfram on Windows
+        SimApp.wolfram_engine_args = new String[]{
+                "-classpath", ".:wolfram/JLink/13.0/JLink-13.0.jar",
+                "-linkmode", "launch",
+                "-linkname", wolfram_engine_path
+        };
+
+        // Args for using Wolfram on Linux
+        // Args for using Wolfram on Mac OS X
     }
 
     private static void executeHeadlessOptimizationJobs() {
@@ -394,7 +444,6 @@ public class SimApp extends Frame {
         SimApp.OrderedByLastCycleOrientation_NodeIDs = new ArrayList<>();
 
         SimApp.optimization_running = false;
-        SimApp.rendering_wolfram_data = false;
     }
 
     public SimApp() {
@@ -781,7 +830,6 @@ public class SimApp extends Frame {
         //auto_optimization_resumer(); // TODO: Remove
     }
 
-
     public static void changeEnabledState(boolean state) {
         SimApp.openDB_Btn.setEnabled(state);
         SimApp.results_per_step_btn.setEnabled(state);
@@ -901,10 +949,12 @@ public class SimApp extends Frame {
         }
     }
 
-    static void update_canvas_plot(String last_generated_image_path){
+    static void updateCanvasPlot(String last_generated_image_path){
 
         // Get the last generated IMG result
-        File fileInput = new File(FileSystems.getDefault().getPath("").toAbsolutePath() + "/Export/" + last_generated_image_path);
+        File fileInput = new File(last_generated_image_path);
+
+        System.out.println("Input plot path: " + fileInput);
 
         BufferedImage last_generated_image;
         BufferedImage scaledImage = null;
@@ -932,6 +982,10 @@ public class SimApp extends Frame {
         SimApp.outputTerminal.setText(current_text + text + "\n");
     }
 
+    static void resetTextArea(){
+        SimApp.outputTerminal.setText("");
+    }
+
     static void setPropertiesAsAvailable(boolean enabled){
 
         SimApp.projectName_inputTextField.setEnabled(enabled);
@@ -940,9 +994,6 @@ public class SimApp extends Frame {
         if (!SimApp.headless_mode){
             SimApp.results_per_step_btn.setEnabled(enabled);
             SimApp.results_per_cycle_btn.setEnabled(enabled);
-
-            SimApp.spatial_direction_btn.setEnabled(enabled);
-            SimApp.rss_density_check_btn.setEnabled(enabled);
         }
 
         SimApp.kNearestNeighbours_for_BeliefsStrength_inputTextField.setEnabled(enabled);
@@ -1099,7 +1150,11 @@ public class SimApp extends Frame {
             input_file_extension = fd.getFile().substring(dotIndex);
 
             SimApp.clean_evaluated_scenario_name = fd.getFile().substring(0, dotIndex);
-            SimApp.input_file_path = fd.getDirectory() + SimApp.clean_evaluated_scenario_name;
+
+            SimApp.input_file_path = Paths.get(
+                    fd.getDirectory(),
+                    fd.getFile()
+            ).toString();
 
             SimApp.outpath_results_folder_path = fd.getDirectory();
             SimApp.loaded_db_name_LabelArea.setBackground(Color.white);
@@ -1119,31 +1174,80 @@ public class SimApp extends Frame {
             if (SimApp.go_Toggle_btn.isClicked()){
                 System.out.println("Starting Cooperative Localization Optimization");
 
-                // Before we do anything, disable all parameter inputs
-                changeEnabledState(false);
-
                 SimApp.go_Toggle_btn.setText("Stop");
 
                 try {
                     getCurrentOptimizationParameters();
+
+                    // After getting the parameter inputs, disable the panel so that no changes can be made
+                    changeEnabledState(false);
+
                     System.out.println("Preparing data structures");
                     resetDataStructures();
                     boolean proceed_with_optimization = directoriesCheck();
 
+                    if (proceed_with_optimization){
+
+                        resetTextArea();
+
+                        // Create a controller thread to run separately from the GUI
+                        SimApp.controller_thread = new Thread(() -> {
+                            // Prepare the log about the used optimization's settings
+
+                            String results_per_selection;
+                            // Get the state of the results_per_step_btn CustomCheckbox
+                            if (SimApp.results_per_step_btn.getState()){
+                                results_per_selection = "Step";
+                            }
+                            else{
+                                results_per_selection = "Cycle";
+                            }
+
+                            String kNN_for_beliefs_strength_check = "\nkNN to consider for the Beliefs-Strength check: " + SimApp.kNearestNeighbours_for_BeliefsStrength_inputTextField.getText() + " Neighbors\n";
+                            String likelihoods_export = "None]\n";
+                            if (SimApp.export_ProductLikelihood_WolframPlot_function_btn.getState()){
+                                likelihoods_export = "Wolfram Plot]\n";
+                            }
+                            String summary_msg ="\n=========== Optimization Initiated ===========" +
+                                    "\nExport folder: " + SimApp.output_iterated_results_folder_path +
+                                    "\nMax step-optimization runtime per thread: " + SimApp.max_optimization_time_per_thread_inputTextField.getText() + "ms" +
+                                    "\nMin effective measurement value: " + SimApp.min_effective_measurement_inputTextField.getText() + "units" +
+                                    "\nftol: " + ftol +
+                                    "\nIterations: " + optimization_iterations_per_thread +
+                                    "\nResults per: " + results_per_selection +
+                                    kNN_for_beliefs_strength_check +
+                                    "Likelihoods export: [" + likelihoods_export;
+
+                            appendToTextArea(summary_msg);
+
+                            try {
+                                Core.init();
+                                Core.resume_SwarmPositioning();
+
+                            } catch (Exception ex) {
+                                throw new RuntimeException(ex);
+                            }
+                        });
+                        SimApp.controller_thread.start();
+
+                    }
+                    
+                    
+                    
                     // Initiate the automated resumer
-                    autoOptimizationResumer();
+                    //autoOptimizationResumer();
 
                     // Proceed or not with current iteration depending on the existence of previous results
-                    if (!proceed_with_optimization){
-                        // Stop the auto-resumer for the current optimization process
-                        SimApp.scheduled_auto_resumer.cancel(true);
-                        SimApp.scheduler.shutdown();
-                    }
+//                    if (!proceed_with_optimization){
+//                        // Stop the auto-resumer for the current optimization process
+//                        SimApp.scheduled_auto_resumer.cancel(true);
+//                        SimApp.scheduler.shutdown();
+//                    }
 
-                    resume();
+                    //resume();
 
 
-                    executeOptimizationJobsInGui();
+                    //executeOptimizationJobsInGui();
 
 
 
@@ -1217,7 +1321,7 @@ public class SimApp extends Frame {
             }
 
             // Get the state of the optimization_order CustomCheckbox
-            if (SimApp.headless_mode || SimApp.rss_density_check_btn.getState()){
+            if (SimApp.headless_mode){
                 optimization_order_selection = "Beliefs-Strength";
             }
             else{
@@ -1226,7 +1330,7 @@ public class SimApp extends Frame {
 
             // If we are performing an optimization based on Density, we need to mention the utilised parameter
             String kNN_for_beliefs_strength_check = "\n";
-            if (SimApp.headless_mode || SimApp.rss_density_check_btn.getState()){
+            if (SimApp.headless_mode){
                 kNN_for_beliefs_strength_check = "\nkNN to consider for the Beliefs-Strength check: " + SimApp.kNearestNeighbours_for_BeliefsStrength_inputTextField.getText() + " Neighbors\n";
             }
 
@@ -1251,7 +1355,11 @@ public class SimApp extends Frame {
 
             setPropertiesAsAvailable(false);
 
-            Core.resume_SwarmPositioning();
+            try {
+                Core.resumeSwarmPositioningInGUIMode();
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
 
             setPropertiesAsAvailable(true);
             SimApp.go_Toggle_btn.setEnabled(true);

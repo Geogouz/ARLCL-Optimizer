@@ -13,6 +13,18 @@
             <id>flanagan-repo</id>
             <url>https://maven.jzy3d.org/releases/</url>
         </repository>
+        <repository>
+            <id>WolframRepo</id>
+            <name>WolframRepo</name>
+            <releases>
+                <enabled>true</enabled>
+                <checksumPolicy>ignore</checksumPolicy>
+            </releases>
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
+            <url>file://${project.basedir}/</url>
+        </repository>
     </repositories>
 
     <properties>
@@ -38,7 +50,11 @@
             <artifactId>commons-math3</artifactId>
             <version>3.6.1</version>
         </dependency>
-
+        <dependency>
+            <groupId>wolfram</groupId>
+            <artifactId>JLink</artifactId>
+            <version>13.0</version>
+        </dependency>
     </dependencies>
 
     <build>
@@ -49,7 +65,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-assembly-plugin</artifactId>
-                <version>3.1.1</version>
+                <version>3.4.2</version>
 
                 <configuration>
                     <descriptorRefs>
@@ -66,7 +82,7 @@
 
                 <executions>
                     <execution>
-                        <id>make-assembly</id>
+                        <id>assemble-all</id>
                         <phase>package</phase>
                         <goals>
                             <goal>single</goal>

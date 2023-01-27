@@ -8,7 +8,7 @@ public class MapField {
     public MapField() {
     }
 
-    public static void update_MapExtent() {
+    public static void updateMapExtent() {
 
         //Set a flag that will show the first iteration
         boolean first_check = true;

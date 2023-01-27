@@ -1,4 +1,5 @@
 import java.io.*;
+import java.net.URISyntaxException;
 import java.util.*;
 import java.util.Map.Entry;
 
@@ -6,39 +7,35 @@ import java.util.Map.Entry;
 public class Core {
     static void init() throws Exception {
         SimApp.appendToTextArea("Initializing SwarmEngine");
-        SimApp.setPropertiesAsAvailable(false);
 
         SimApp.appendToTextArea("Preparing the Optimization Workers (number: " + SimApp.threads + ")");
         MathEngine.create_the_optimizers();
 
-        parse_db();
+        parseDB();
         // computeInitialCrossDistances();
         // Use this for debugging and to set the nodes to true Pos
         // reset_CurrentNodePos_to_TruePos();
-        sort_nodes_by_popularity();
+        sortNodesByBeliefsStrength();
 
         // This is the first Map_Extent update to set the Global Min/Max X/Y to be ready for even the first optimization
-        MapField.update_MapExtent();
-
-        // Make a small benchmark comparing computational demands between Pure Java and Mathematica
-        //compare_timings();
-        SimApp.setPropertiesAsAvailable(true);
+        MapField.updateMapExtent();
     }
 
-    static void get_the_effective_neighbors(Node currentNode) {
+    static void getEffectiveNeighbors(Node currentNode) {
 
         // Find the closest remote Nodes to it
         SimApp.effective_remoteNodes = new ArrayList<>();
 
-        //Get the RSS values from all other Nodes
+        // System.out.println("Getting Nodes with effective beliefs for node: " + currentNode.id);
+
+        //Get the Measurements from all other Nodes
         for (HashMap.Entry<Integer, Double> entry : currentNode.measurement_from_node.entrySet()) {
 
             int remoteNode = entry.getKey();
             double measurement_value = entry.getValue();
 
             // Ignore all measurement values that are not described by our model
-            // Todo: change sign according to measurement type
-            //System.out.println("Checking if measurement " + measurement_value + " between remote Node " + remoteNode + " and current Node " + currentNode + " is at least " + Sim_App.min_effective_measurement_inputTextArea.getText());
+            // System.out.println("Checking if measurement " + measurement_value + " between remote Node " + remoteNode + " and current Node " + currentNode.id + " is at least " + SimApp.min_effective_measurement_inputTextField.getText());
 
             if ((measurement_value <= Integer.parseInt(SimApp.min_effective_measurement_inputTextField.getText()))
                     && (remoteNode != currentNode.id)) {
@@ -51,7 +48,7 @@ public class Core {
         }
     }
 
-    static private void sort_nodes_by_popularity(){
+    static private void sortNodesByBeliefsStrength(){
         // Create a Node-Popularity mapping (based on the average Beliefs-Strength from the k strongest measurements)
         HashMap<Integer, Double> node_popularity = new HashMap<>();
 
@@ -147,7 +144,7 @@ public class Core {
         }
     }
 
-    static private void parse_db() throws Exception {
+    static private void parseDB() throws Exception {
         // Loading the database
         SimApp.appendToTextArea("Parsing Node DB");
 
@@ -159,7 +156,6 @@ public class Core {
 
         // Data format in the .rss file is important!
         String positions_header = "#POSITIONS GROUND TRUTH#";
-        String rss_header = "#RSS_" + SimApp.current_eval_iteration + "#";
 
         String current_parsing_type = null;
 
@@ -171,8 +167,8 @@ public class Core {
                 current_parsing_type = positions_header;
                 continue;
             }
-            else if (strLine.equals(rss_header)){
-                current_parsing_type = rss_header;
+            else if (strLine.startsWith("#")){
+                current_parsing_type = "#";
                 continue;
             }
             else if (strLine.equals("")){
@@ -207,10 +203,10 @@ public class Core {
 
                     double measurement_value = Double.parseDouble(measurement_value_parts[1].split("&")[0]);
 
-                    // Update for 1st Node, the RSS towards the 2nd Node
+                    // Update for 1st Node, the measurement towards the 2nd Node
                     SimApp.nodeID_to_nodeObject.get(nodeA).measurement_from_node.put(nodeB, measurement_value);
 
-                    //System.out.println("Node " + nodeA + " to Node " + nodeB + " measurement: " + measurement_value);
+                    // System.out.println("Node " + nodeA + " to Node " + nodeB + " measurement: " + measurement_value);
                 }
             }
         }
@@ -219,7 +215,7 @@ public class Core {
         fstream.close();
     }
 
-    static void resume_SwarmPositioning(){
+    static void resume_SwarmPositioning() throws Exception {
         SimApp.optimization_running = true;
 
         SimApp.appendToTextArea("Position Estimations:");
@@ -227,24 +223,20 @@ public class Core {
         // Check if there is no remaining step from previous unfinished cycles
         if (SimApp.temp_OrderedRemoteNodeIDs.size()==0){
 
-            if (SimApp.headless_mode || SimApp.rss_density_check_btn.getState()){
-                // We are starting a new Cycle. So, we need to align the swarm based on the principal spatial variation
-                //MathEngine.align_Swarm();
-                SimApp.temp_OrderedRemoteNodeIDs.addAll(SimApp.OrderedByBeliefsStrength_NodeIDs);
+            if (!SimApp.headless_mode){
+                // We align the swarm based on the principal spatial variation for better visualization in GUI
+                // MathEngine.align_Swarm();
+                // TODO we need to do that only for visualization purposes
             }
-            else{
-                // We are starting a new Cycle. So, we need to align the swarm based on the principal spatial variation
-                MathEngine.align_Swarm();
 
-                // In case we have set the Orientation indexing, we need to sort the Nodes according to their X value
-                SimApp.OrderedByLastCycleOrientation_NodeIDs = MathEngine.order_NodeIDs_byPositionX();
-                SimApp.temp_OrderedRemoteNodeIDs.addAll(SimApp.OrderedByLastCycleOrientation_NodeIDs);
-            }
+            // We start a new Cycle. At this point, sortNodesByBeliefsStrength() has already ordered the nodes.
+            SimApp.temp_OrderedRemoteNodeIDs.addAll(SimApp.OrderedByBeliefsStrength_NodeIDs);
 
             // Update also the progress counters
             SimApp.cycleCounter = SimApp.cycleCounter + 1;
             SimApp.stepCounter = 0;
         }
+
         // Check if the user wants to get results per step
         if (!SimApp.headless_mode && SimApp.results_per_step_btn.getState()){
             SimApp.stepCounter = SimApp.stepCounter + 1;
@@ -254,19 +246,14 @@ public class Core {
 
             //currentNode = 6; // Set this manually for debugging purposes
 
-            // Let Java calculate the most probable position of current Node and use the outcome to update the Node
-            // Since we might end up with precision problems due to many probability multiplications,
-            // we can do this more accurately with Mathematica. Yet, for the moment, we handle this problem by
-            // regulating the maximum RSS that we are considering during the positioning steps
-
-            double[] new_current_position = MathEngine.find_BestPosition_ForCurrentNode(currentNode, SimApp.cycleCounter, SimApp.stepCounter); // Java
+            double[] new_current_position = MathEngine.findBestPositionForCurrentNode(currentNode, SimApp.cycleCounter, SimApp.stepCounter); // Java
 
             if (new_current_position != null){
                 currentNode.update_CurrentNodePos(new_current_position[0], new_current_position[1]);
             }
 
-            MapField.update_MapExtent();
-            MathEngine.publish_results(SimApp.cycleCounter, SimApp.stepCounter, currentNode);
+            MapField.updateMapExtent();
+            MathEngine.publishResultsInGUI(SimApp.cycleCounter, SimApp.stepCounter, currentNode);
 
             // todo use this for debugging whenever needed
             /*
@@ -293,22 +280,17 @@ public class Core {
 
                 //System.out.println("Removing: " + currentNodeID + " TempList: " + RemoteNodeIDbyPopularity_tracker.size() + " OriginalList: " + NodeIDbyPopularity_originalList.size());
 
-                // Let Java calculate the most probable position of current Node and use the outcome to update the Node
-                // Since we might end up with precision problems due to many probability multiplications,
-                // we can do this more accurately with Mathematica. Yet, for the moment, we handle this problem by
-                // regulating the maximum RSS that we are considering during the positioning steps
-
-                double[] new_current_position = MathEngine.find_BestPosition_ForCurrentNode(
+                double[] new_current_position = MathEngine.findBestPositionForCurrentNode(
                         SimApp.nodeID_to_nodeObject.get(currentNodeID), SimApp.cycleCounter, SimApp.stepCounter);
 
                 if (new_current_position != null){
                     currentNode.update_CurrentNodePos(new_current_position[0], new_current_position[1]);
                 }
 
-                MapField.update_MapExtent();
+                MapField.updateMapExtent();
                 // Check whether we are currently at the last step
                 if (last_step){
-                    MathEngine.publish_results(SimApp.cycleCounter, SimApp.stepCounter, currentNode);
+                    MathEngine.publishResultsInGUI(SimApp.cycleCounter, SimApp.stepCounter, currentNode);
                 }
 
                 // Check if the stop Button is not enabled.
@@ -334,6 +316,97 @@ public class Core {
             SimApp.scheduled_auto_resumer.cancel(true);
             SimApp.scheduler.shutdown();
         }
+    }
+
+    static void resumeSwarmPositioningInGUIMode() throws Exception {
+        SimApp.optimization_running = true;
+
+        SimApp.appendToTextArea("Position Estimations:");
+
+        // Check if there is no remaining step from previous unfinished cycles
+        if (SimApp.temp_OrderedRemoteNodeIDs.size()==0){
+
+            // We align the swarm based on the principal spatial variation for better visualization in GUI
+            // MathEngine.align_Swarm();
+            // TODO we need to do that only for visualization purposes
+
+            // We start a new Cycle. At this point, sortNodesByBeliefsStrength() has already ordered the nodes.
+            SimApp.temp_OrderedRemoteNodeIDs.addAll(SimApp.OrderedByBeliefsStrength_NodeIDs);
+
+            // Update also the progress counters
+            SimApp.cycleCounter = SimApp.cycleCounter + 1;
+            SimApp.stepCounter = 0;
+        }
+
+        // Check if the user wants to get results per step
+        if (SimApp.results_per_step_btn.getState()){
+
+            SimApp.stepCounter = SimApp.stepCounter + 1;
+
+            Node currentNode = SimApp.nodeID_to_nodeObject.get(SimApp.temp_OrderedRemoteNodeIDs.remove(0));
+            //System.out.println("Removing: " + currentNode + " TempList: " + RemoteNodeIDbyPopularity_tracker.size() + " OriginalList: " + NodeIDbyPopularity_originalList.size());
+
+            //currentNode = 6; // Set this manually for debugging purposes
+
+            double[] new_current_position = MathEngine.findBestPositionForCurrentNode(currentNode, SimApp.cycleCounter, SimApp.stepCounter); // Java
+
+            if (new_current_position != null){
+                currentNode.update_CurrentNodePos(new_current_position[0], new_current_position[1]);
+            }
+
+            MapField.updateMapExtent();
+            MathEngine.publishResultsInGUI(SimApp.cycleCounter, SimApp.stepCounter, currentNode);
+
+            // todo use this for debugging whenever needed
+            /*
+            if (resetAll_CurrentNodePos_to_TruePos){
+                reset_CurrentNodePos_to_TruePos();
+            }
+            */
+        }
+        // Being here means that the user wants to get results per cycle
+        else {
+            boolean last_step = false;
+            int remaining_steps = SimApp.temp_OrderedRemoteNodeIDs.size();
+
+            for (int step = 0; step<remaining_steps; step++){
+                SimApp.stepCounter = SimApp.stepCounter + 1;
+
+                int currentNodeID = SimApp.temp_OrderedRemoteNodeIDs.remove(0);
+                Node currentNode = SimApp.nodeID_to_nodeObject.get(currentNodeID);
+
+                // Check if after removing this node, we ended up at the last optimization step
+                if (SimApp.temp_OrderedRemoteNodeIDs.size()==0){
+                    last_step = true;
+                }
+
+                //System.out.println("Removing: " + currentNodeID + " TempList: " + RemoteNodeIDbyPopularity_tracker.size() + " OriginalList: " + NodeIDbyPopularity_originalList.size());
+
+                double[] new_current_position = MathEngine.findBestPositionForCurrentNode(
+                        SimApp.nodeID_to_nodeObject.get(currentNodeID), SimApp.cycleCounter, SimApp.stepCounter);
+
+                if (new_current_position != null){
+                    currentNode.update_CurrentNodePos(new_current_position[0], new_current_position[1]);
+                }
+
+                MapField.updateMapExtent();
+                // Check whether we are currently at the last step
+                if (last_step){
+                    MathEngine.publishResultsInGUI(SimApp.cycleCounter, SimApp.stepCounter, currentNode);
+                }
+
+                // Check if the stop Button is not enabled.
+                // In such case, the user has manually stopped the optimization and so, break the iteration..
+//                if (SimApp.optimization_cycles < SimApp.cycleCounter){
+//                    System.out.println("Current finished cycle: " + SimApp.optimization_cycles);
+//                    break;
+//                }
+            }
+        }
+
+        SimApp.optimization_running = false;
+        SimApp.appendToTextArea("Map Extent: (" + MapField.global_minPlotX + ", " + MapField.global_maxPlotX + "), (" + MapField.global_minPlotY + ", " + MapField.global_maxPlotY + ")");
+        SimApp.appendToTextArea("=========== Optimization Finished ===========");
     }
 
     // Use the following to reset everytime the Nodes to their True Position (for debugging)
