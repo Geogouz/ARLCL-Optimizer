@@ -1,33 +1,44 @@
 import flanagan.math.MaximisationFunction;
 import org.apache.commons.math3.stat.regression.SimpleRegression;
 import org.apache.commons.math3.util.FastMath;
+import org.jzy3d.chart.Chart;
+import org.jzy3d.chart.factories.AWTChartFactory;
+import org.jzy3d.chart.factories.IChartFactory;
+import org.jzy3d.colors.ColorMapper;
+import org.jzy3d.colors.colormaps.ColorMapRainbow;
+import org.jzy3d.maths.Range;
+import org.jzy3d.plot3d.builder.Func3D;
+import org.jzy3d.plot3d.builder.SurfaceBuilder;
+import org.jzy3d.plot3d.builder.concrete.OrthonormalGrid;
+import org.jzy3d.plot3d.primitives.Shape;
+import org.jzy3d.plot3d.rendering.canvas.Quality;
 
-import java.io.File;
+import java.awt.*;
 import java.math.BigDecimal;
-import com.wolfram.jlink.*;
 
-import java.nio.file.FileSystems;
 import java.nio.file.Paths;
 import java.util.*;
+import java.util.List;
 
 
 // Class to demonstrate Maximisation method, Maximisation nelderMead
 class MathEngine {
 
-    static String ProductFinalFunction_mtcaObject;
+    static String ProductFinalFunctionObject;
 
     // simplification 1
-    static double bestLikelihood = Double.NEGATIVE_INFINITY; // POSITIVE_INFINITY // NEGATIVE_INFINITY;
+    static double bestLikelihood;
 
     static String NodePos_Results_filename;
 
-    static Optimizer[] swarmPositioningOptimizers = new Optimizer[SimApp.threads];
+    static Optimizer[] swarmPositioningOptimizers;
 
-    static void create_the_optimizers(){
+    static void generateTheOptimizerThreads(){
+        System.out.println(MathEngine.swarmPositioningOptimizers.length);
         // Generate as many Optimizers as the available Cores on the machine
         for (int thread = 0; thread< SimApp.threads; thread++){
             // Generate a new optimizer and add it to the thread mapper
-            swarmPositioningOptimizers[thread] = new Optimizer();
+            MathEngine.swarmPositioningOptimizers[thread] = new Optimizer();
         }
     }
 
@@ -116,18 +127,18 @@ class MathEngine {
         // Check if the user has selected to export also the ProductLikelihood
         if (SimApp.headless_mode || SimApp.export_ProductLikelihood_WolframPlot_function_btn.getState()){
             // Create the Wolfram CMD
-            productLikelihoodComponents = getNeighborBeliefsForNode(current_node);
+            productLikelihoodComponents = getWolframFunctionComponentsWithNeighborBeliefsForNode(current_node);
         }
 
         ArrayList[] mathematica_components = new ArrayList[2];
 
-        mathematica_components[0] = build_PositionsCanvasPlot_WolframCMD(current_node);
+        mathematica_components[0] = getWolframFunctionWithNeighborBeliefsForNode(current_node);
         mathematica_components[1] = productLikelihoodComponents;
 
         return mathematica_components;
     }
 
-    private static ArrayList build_PositionsCanvasPlot_WolframCMD(Node current_node){
+    private static ArrayList getWolframFunctionWithNeighborBeliefsForNode(Node current_node){
 
         StringBuilder temp_EffectiveNode_Pos_component = new StringBuilder();
         temp_EffectiveNode_Pos_component.append("plotA = ListPlot[\n  {");
@@ -230,7 +241,7 @@ class MathEngine {
         return positionsCanvasPlot_WolframCMD_ArrayListContainer;
     }
 
-    private static ArrayList getNeighborBeliefsForNode(Node current_node){
+    private static ArrayList getWolframFunctionComponentsWithNeighborBeliefsForNode(Node current_node){
 
         ArrayList productLikelihoodComponents = new ArrayList<>();
 
@@ -357,7 +368,7 @@ class MathEngine {
                     mathematica_plot_components[0].get(0), NodePos_Plot_filename, "");
         }
 
-        renderLikelihoodPlots();
+        generatePlot(false);
 
         // Export the String to a file
         SimApp.writeString2File(NodePos_CMD_filename, NodePos_WolframExportCMD, export_likelihood);
@@ -368,19 +379,40 @@ class MathEngine {
         SimApp.updateCanvasPlot(NodePos_Plot_filename);
     }
 
-    private static void renderLikelihoodPlots() {
-        KernelLink ml = null;
-        // Get the path to math kernel
-        try {
-            ml = MathLinkFactory.createKernelLink(SimApp.wolfram_engine_args);
-            ml.evaluate("1+1");
-            ml.waitForAnswer();
-            int result = ml.getInteger();
-            System.out.println("1 + 1 = " + result);
-        } catch (MathLinkException e) {
-            System.out.println("MathLinkException occurred: " + e.getMessage());
-        } finally {
-            ml.close();
+    public static Component generatePlot(boolean init) {
+
+        if (init){
+            IChartFactory f = new AWTChartFactory();
+            Chart chart = f.newChart(Quality.Advanced().setHiDPIEnabled(true));
+            chart.view2d();
+            return (Component) chart.getCanvas();
+        }
+        else{
+            System.out.println("Boom");
+            double coordinates = MathEngine.swarmPositioningOptimizers[0].position_likelihood.function(new double[] {300, 300});
+
+            System.out.println(coordinates);
+
+            // Define a function to plot
+            Func3D func = new Func3D((x, y) -> x * Math.sin(x * y));
+            Range range = new Range(-3, 3);
+            int steps = 80;
+
+            // Create the object to represent the function over the given range.
+            final Shape surface = new SurfaceBuilder().orthonormal(new OrthonormalGrid(range, steps), func);
+            surface.setColorMapper(new ColorMapper(new ColorMapRainbow(), surface, new org.jzy3d.colors.Color(1, 1, 1, .5f)));
+            surface.setFaceDisplayed(true);
+            surface.setWireframeDisplayed(false);
+
+            // Create a chart
+            //GLCapabilities c = new GLCapabilities(GLProfile.get(GLProfile.GL3));
+            //IPainterFactory p = new AWTPainterFactory(c);
+
+            Chart chart = new AWTChartFactory().newChart(Quality.Advanced().setHiDPIEnabled(true));
+            chart.view2d();
+            chart.getScene().getGraph().add(surface);
+            //chart.open();
+            return (Component) chart.getCanvas();
         }
     }
 
@@ -395,9 +427,9 @@ class MathEngine {
         // Remove the last unwanted chars from the Strings
         // System.out.println(temp_distance_likelihood_function);
         temp_distance_likelihood_function.setLength(temp_distance_likelihood_function.length() - 2);
-        ProductFinalFunction_mtcaObject = temp_distance_likelihood_function.toString();
+        ProductFinalFunctionObject = temp_distance_likelihood_function.toString();
 
-        String mathematica_likelihdood_function = "r[distanceX_, distanceY_] := (" + ProductFinalFunction_mtcaObject + ")";
+        String mathematica_likelihdood_function = "r[distanceX_, distanceY_] := (" + ProductFinalFunctionObject + ")";
         String plot_cmd = mathematica_likelihdood_function
                 + ")/ " + String.valueOf(bestLikelihood).replaceFirst("E-", "*^-") // Use extra ) for simplified UWB model
                 + ";\n\n";
@@ -433,12 +465,12 @@ class MathEngine {
 
         Core.getEffectiveNeighbors(currentNode);
 
-        MathEngine.create_the_optimizers();
+        MathEngine.generateTheOptimizerThreads();
 
         // Start each thread worker or notify it to continue with the optimization (i.e. escape the waiting state)
         for (Optimizer optimizer: swarmPositioningOptimizers){
             // Reset the maxLikelihood
-            bestLikelihood = Double.NEGATIVE_INFINITY; // TODO: Probably move that outside
+            bestLikelihood = Double.NEGATIVE_INFINITY;
             optimizer.start();
         }
         try {
@@ -540,7 +572,7 @@ class CircularDistanceLikelihood implements MaximisationFunction{
 
     // Method to set the parameters of the CircularDistanceLikelihood that belongs to the corresponding Node
     // This method is utilised only when the Node is among the "remote ones"
-    void update_Measurement_and_ExtentReach(double measurement){
+    void updateMeasurementAndExtentReach(double measurement){
         this.measurement = measurement;
 
         this.minPlotX = attachedNode.current_relative_x - SimApp.max_distance;

@@ -1,5 +1,4 @@
 import java.io.*;
-import java.net.URISyntaxException;
 import java.util.*;
 import java.util.Map.Entry;
 
@@ -9,7 +8,7 @@ public class Core {
         SimApp.appendToTextArea("Initializing SwarmEngine");
 
         SimApp.appendToTextArea("Preparing the Optimization Workers (number: " + SimApp.threads + ")");
-        MathEngine.create_the_optimizers();
+        MathEngine.generateTheOptimizerThreads();
 
         parseDB();
         // computeInitialCrossDistances();
@@ -43,7 +42,7 @@ public class Core {
 
                 //System.out.println("Effective Node " + remoteNode + " added for " + currentNode + " due to measurement " + measurement_value);
 
-                SimApp.nodeID_to_nodeObject.get(remoteNode).cdl.update_Measurement_and_ExtentReach(measurement_value);
+                SimApp.nodeID_to_nodeObject.get(remoteNode).cdl.updateMeasurementAndExtentReach(measurement_value);
             }
         }
     }
@@ -348,14 +347,16 @@ public class Core {
 
             //currentNode = 6; // Set this manually for debugging purposes
 
-            double[] new_current_position = MathEngine.findBestPositionForCurrentNode(currentNode, SimApp.cycleCounter, SimApp.stepCounter); // Java
+            double[] new_current_position = MathEngine.findBestPositionForCurrentNode(currentNode, SimApp.cycleCounter, SimApp.stepCounter);
+
+            // We use the same optimization function to publish the likelihood, before updating the nodes' positions
+            MathEngine.publishResultsInGUI(SimApp.cycleCounter, SimApp.stepCounter, currentNode);
 
             if (new_current_position != null){
                 currentNode.update_CurrentNodePos(new_current_position[0], new_current_position[1]);
             }
 
             MapField.updateMapExtent();
-            MathEngine.publishResultsInGUI(SimApp.cycleCounter, SimApp.stepCounter, currentNode);
 
             // todo use this for debugging whenever needed
             /*
@@ -385,15 +386,17 @@ public class Core {
                 double[] new_current_position = MathEngine.findBestPositionForCurrentNode(
                         SimApp.nodeID_to_nodeObject.get(currentNodeID), SimApp.cycleCounter, SimApp.stepCounter);
 
+                // Check whether we are currently at the last step
+                if (last_step){
+                    // We use the same optimization function to publish the likelihood, before updating the nodes' positions
+                    MathEngine.publishResultsInGUI(SimApp.cycleCounter, SimApp.stepCounter, currentNode);
+                }
+
                 if (new_current_position != null){
                     currentNode.update_CurrentNodePos(new_current_position[0], new_current_position[1]);
                 }
 
                 MapField.updateMapExtent();
-                // Check whether we are currently at the last step
-                if (last_step){
-                    MathEngine.publishResultsInGUI(SimApp.cycleCounter, SimApp.stepCounter, currentNode);
-                }
 
                 // Check if the stop Button is not enabled.
                 // In such case, the user has manually stopped the optimization and so, break the iteration..

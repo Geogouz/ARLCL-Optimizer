@@ -1,3 +1,15 @@
+import org.jzy3d.chart.Chart;
+import org.jzy3d.chart.factories.AWTChartFactory;
+import org.jzy3d.chart.factories.IChartFactory;
+import org.jzy3d.colors.ColorMapper;
+import org.jzy3d.colors.colormaps.ColorMapRainbow;
+import org.jzy3d.maths.Range;
+import org.jzy3d.plot3d.builder.Func3D;
+import org.jzy3d.plot3d.builder.SurfaceBuilder;
+import org.jzy3d.plot3d.builder.concrete.OrthonormalGrid;
+import org.jzy3d.plot3d.primitives.Shape;
+import org.jzy3d.plot3d.rendering.canvas.Quality;
+
 import javax.imageio.ImageIO;
 import javax.swing.*;
 import java.awt.*;
@@ -22,6 +34,7 @@ import java.util.zip.ZipOutputStream;
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
+import static org.jzy3d.plot3d.primitives.SampleGeom.surface;
 
 public class SimApp extends Frame {
 
@@ -217,54 +230,12 @@ public class SimApp extends Frame {
 
             // We ensure first that the required wolfram math executable is available right next to the optimizer's Jar
             try {
-                ensureWolframEngineAvailability();
                 new SimApp();
             } catch (Exception e) {
                 System.out.println("Failed extracting WolframEngine");
                 throw new RuntimeException(e);
             }
         }
-    }
-
-    private static void ensureWolframEngineAvailability() throws Exception {
-        // Get path of the JAR file
-        String jarPath = MathEngine.class
-                .getProtectionDomain()
-                .getCodeSource()
-                .getLocation()
-                .toURI()
-                .getPath();
-
-        String wolframPath = new File(jarPath).getParentFile().toString();
-        String wolfram_engine_path = Paths.get(wolframPath, "wolfram.exe").toString();
-
-        System.out.println("Exporting wolfram math at: " + wolfram_engine_path);
-
-        InputStream is = SimApp.class.getResourceAsStream("wolfram/JLink/13.0/SystemFiles/Libraries/Windows-x86-64/wolfram_win.exe");
-        File file = new File(wolfram_engine_path);
-        FileOutputStream fos = new FileOutputStream(file);
-        byte[] buffer = new byte[4096];
-        int length;
-        while ((length = is.read(buffer)) > 0) {
-            fos.write(buffer, 0, length);
-        }
-        fos.close();
-        is.close();
-
-        // TODO clean
-        //static final String[] wolfram_args_windows = 2 SampleProgram 3 4
-        //static final String[] wolfram_args_linux = -classpath .:../../JLink.jar SampleProgram 3 -linkname 'math -mathlink'
-        //static final String[] wolfram_args_mac = -classpath .:../../JLink.jar SampleProgram 3 -linkname '"/Applications/Mathematica.app/Contents/MacOS/MathKernel" -mathlink'
-
-        // Args for using Wolfram on Windows
-        SimApp.wolfram_engine_args = new String[]{
-                "-classpath", ".:wolfram/JLink/13.0/JLink-13.0.jar",
-                "-linkmode", "launch",
-                "-linkname", wolfram_engine_path
-        };
-
-        // Args for using Wolfram on Linux
-        // Args for using Wolfram on Mac OS X
     }
 
     private static void executeHeadlessOptimizationJobs() {
@@ -446,6 +417,10 @@ public class SimApp extends Frame {
         SimApp.optimization_running = false;
     }
 
+
+
+
+
     public SimApp() {
         setLayout(null);
         setTitle("Swarm Positioning");
@@ -473,6 +448,12 @@ public class SimApp extends Frame {
         final int c4_content_width = value_text_width;
 
         final int r2_y = bar_height + window_height - settings_panel_height + small_text_height + tiny_gap;
+
+
+        Component plot_area = MathEngine.generatePlot(true);
+        plot_area.setBounds(0, bar_height, c1_x-2,window_height-bar_height-medium_text_height-1);
+        add(plot_area, BorderLayout.CENTER);
+
 
 
         SimApp.outputTerminal = new CustomTextArea("",2,40, TextArea.SCROLLBARS_VERTICAL_ONLY);
@@ -1294,6 +1275,9 @@ public class SimApp extends Frame {
             SimApp.ftol = Integer.parseInt(SimApp.ftol_inputTextField.getText());
             SimApp.initial_step_size = Integer.parseInt(SimApp.initial_step_size_inputTextField.getText());
             SimApp.optimization_cycles = Integer.parseInt(SimApp.optimization_cycles_inputTextField.getText());
+
+            MathEngine.bestLikelihood = Double.NEGATIVE_INFINITY; // POSITIVE_INFINITY // NEGATIVE_INFINITY;
+            MathEngine.swarmPositioningOptimizers = new Optimizer[SimApp.threads];
         }
     }
 
