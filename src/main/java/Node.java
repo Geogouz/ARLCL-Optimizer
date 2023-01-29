@@ -29,14 +29,14 @@ public class Node {
         this.id = id;
         this.true_relative_x = true_relative_x;
         this.true_relative_y = true_relative_y;
-        set_initial_random_relative_positions();
+        setInitialRandomPositions();
 
         // Attach the CircularDistanceLikelihood function to this Node
         // This function will be updated throughout every positioning iteration
         cdl = new CircularDistanceLikelihood(this);
     }
 
-    public void set_initial_random_relative_positions(){
+    public void setInitialRandomPositions(){
         // Set the extent for the initial random positioning
         final double initial_global_minPlotX = -SimApp.max_distance;
         final double initial_global_maxPlotX = SimApp.max_distance;
@@ -44,11 +44,11 @@ public class Node {
         final double initial_global_maxPlotY = SimApp.max_distance;
 
         // Use this to set position at 0
-        update_CurrentNodePos(0, 0);
+        updateCurrentNodePos(0, 0);
 
 //        double randomX = initial_global_minPlotX + SimApp.random.nextDouble() * (initial_global_maxPlotX - initial_global_minPlotX);
 //        double randomY = initial_global_minPlotY + SimApp.random.nextDouble() * (initial_global_maxPlotY - initial_global_minPlotY);
-//        update_CurrentNodePos(randomX, randomY);
+//        updateCurrentNodePos(randomX, randomY);
     }
 
     public double getDistanceToNode(Node NodeB, boolean use_true_position){
@@ -68,7 +68,7 @@ public class Node {
                 "Init Coords: [" + df.format(current_relative_x) + ", " + df.format(current_relative_y) + "]";
     }
 
-    public void update_CurrentNodePos(double x, double y){
+    public void updateCurrentNodePos(double x, double y){
         // First update the Java object
         current_relative_x = x;
         current_relative_y = y;

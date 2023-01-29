@@ -392,7 +392,6 @@ class MathEngine {
             SimApp.chart_plot.view2d();
             SimApp.chart_plot.getCanvas().getView().setSquarifier(new XZSquarifier());
             SimApp.chart_plot.getCanvas().getView().setSquared(true);
-            return (Component) SimApp.chart_plot.getCanvas();
         }
         else{
 
@@ -424,8 +423,6 @@ class MathEngine {
 
             SimApp.chart_plot = new AWTChartFactory().newChart(Quality.Advanced().setHiDPIEnabled(true));
             SimApp.chart_plot.view2d();
-//            SimApp.chart_plot.getCanvas().getView().setSquarifier(new XZSquarifier());
-//            SimApp.chart_plot.getCanvas().getView().setSquared(false);
 
             Scatter scatter = getScatterPlot(current_node);
             List<DrawableTextWrapper> node_labels = getNodeLabels();
@@ -434,8 +431,8 @@ class MathEngine {
             SimApp.chart_plot.getScene().add(scatter);
             SimApp.chart_plot.getScene().add(node_labels);
 
-            return (Component) SimApp.chart_plot.getCanvas();
         }
+        return (Component) SimApp.chart_plot.getCanvas();
     }
 
     public static Scatter getScatterPlot(Node current_node){

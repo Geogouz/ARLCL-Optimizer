@@ -46,7 +46,6 @@ public class SimApp extends Frame {
     static int min_effective_measurement;
     static int kNearestNeighbours_for_BeliefsStrength;
     static int initial_Map_Extend; // TODO merge
-    static int seed; // TODO merge
     static int threads;
     static int optimization_iterations_per_thread;
     static int max_optimization_time_per_thread;
@@ -176,6 +175,7 @@ public class SimApp extends Frame {
 
                 // Set the seed
                 SimApp.random.setSeed(Long.parseLong(str_arguments.get("seed")));
+
                 SimApp.ftol = Double.parseDouble(str_arguments.get("ftol"));
                 SimApp.outpath_results_folder_path = str_arguments.get("out_path");
                 input_rss_folder_path = str_arguments.get("rss_db_path");
@@ -189,6 +189,8 @@ public class SimApp extends Frame {
                 SimApp.kNearestNeighbours_for_BeliefsStrength = Integer.parseInt(str_arguments.get("k_Beliefs"));
                 SimApp.min_effective_measurement = Integer.parseInt(str_arguments.get("min_effect"));
                 SimApp.plotResolution = Integer.parseInt(str_arguments.get("plot_res"));
+                SimApp.results_per_step = false;
+                SimApp.results_per_cycle = true;
             }
             catch (Exception e) {
                 e.printStackTrace();
@@ -238,7 +240,6 @@ public class SimApp extends Frame {
         // Execute the following simulation setup as many times as the user has selected
         while (SimApp.current_eval_iteration < SimApp.ending_eval_iteration +1){
             try {
-                System.out.println("Preparing data structures");
                 resetDataStructures();
                 headlessInit();
                 Core.init();
@@ -402,6 +403,8 @@ public class SimApp extends Frame {
     }
 
     private static void resetDataStructures() {
+        System.out.println("Preparing data structures");
+
         SimApp.cycleCounter = 0;
         SimApp.stepCounter = 0;
 
@@ -412,10 +415,6 @@ public class SimApp extends Frame {
 
         SimApp.optimization_running = false;
     }
-
-
-
-
 
     public SimApp() throws Exception {
         setLayout(null);
@@ -560,7 +559,7 @@ public class SimApp extends Frame {
         // This Section is for the Optimization Starter
         int go_Toggle_btn_y = export_ProductLikelihood_Label_y + export_ProductLikelihood_WolframPlot_function_Label_height + tiny_gap;
         SimApp.go_Toggle_btn = new CustomToggleButton("GO");
-        SimApp.go_Toggle_btn.addActionListener(new startOptimizingBtnAdapter());
+        SimApp.go_Toggle_btn.addActionListener(new executeOptimizationJobInGuiAdapter());
         SimApp.go_Toggle_btn.setBounds(c1_x, go_Toggle_btn_y, c1_content_width, medium_text_height);
 
         int auto_resumer_btn_y = go_Toggle_btn_y + medium_text_height + tiny_gap;
@@ -807,7 +806,7 @@ public class SimApp extends Frame {
         //auto_optimization_resumer(); // TODO: Remove
     }
 
-    public static void changeEnabledState(boolean state) {
+    public static void changeConfigurationPanelEnabledState(boolean state) {
         SimApp.openDB_Btn.setEnabled(state);
         SimApp.results_per_step_btn.setEnabled(state);
         SimApp.results_per_cycle_btn.setEnabled(state);
@@ -1144,7 +1143,7 @@ public class SimApp extends Frame {
         }
     }
 
-    static private class startOptimizingBtnAdapter implements ActionListener {
+    static private class executeOptimizationJobInGuiAdapter implements ActionListener {
         public void actionPerformed(ActionEvent e) {
             // This method is only accessible from GUI, where only a single evaluation ID from the loaded DB file can be
             // executed. This ID is the one that the user set in the panel with the optimization's parameters.
@@ -1154,12 +1153,11 @@ public class SimApp extends Frame {
                 SimApp.go_Toggle_btn.setText("Stop");
 
                 try {
-                    getCurrentOptimizationParameters();
+                    getGuiOptimizationParameters();
 
                     // After getting the parameter inputs, disable the panel so that no changes can be made
-                    changeEnabledState(false);
+                    changeConfigurationPanelEnabledState(false);
 
-                    System.out.println("Preparing data structures");
                     resetDataStructures();
                     boolean proceed_with_optimization = directoriesCheck();
 
@@ -1167,39 +1165,15 @@ public class SimApp extends Frame {
 
                         resetTextArea();
 
-                        // Create a controller thread to run separately from the GUI
+                        // Create a controller thread to run separately from the GUI.
+                        // In headless mode this is not necessary
                         SimApp.controller_thread = new Thread(() -> {
                             // Prepare the log about the used optimization's settings
-
-                            String results_per_selection;
-                            // Get the state of the results_per_step_btn CustomCheckbox
-                            if (SimApp.results_per_step_btn.getState()){
-                                results_per_selection = "Step";
-                            }
-                            else{
-                                results_per_selection = "Cycle";
-                            }
-
-                            String kNN_for_beliefs_strength_check = "\nkNN to consider for the Beliefs-Strength check: " + SimApp.kNearestNeighbours_for_BeliefsStrength_inputTextField.getText() + " Neighbors\n";
-                            String likelihoods_export = "None]\n";
-                            if (SimApp.export_ProductLikelihood_WolframPlot_function_btn.getState()){
-                                likelihoods_export = "Wolfram Plot]\n";
-                            }
-                            String summary_msg ="\n=========== Optimization Initiated ===========" +
-                                    "\nExport folder: " + SimApp.output_iterated_results_folder_path +
-                                    "\nMax step-optimization runtime per thread: " + SimApp.max_optimization_time_per_thread_inputTextField.getText() + "ms" +
-                                    "\nMin effective measurement value: " + SimApp.min_effective_measurement_inputTextField.getText() + "units" +
-                                    "\nftol: " + ftol +
-                                    "\nIterations: " + optimization_iterations_per_thread +
-                                    "\nResults per: " + results_per_selection +
-                                    kNN_for_beliefs_strength_check +
-                                    "Likelihoods export: [" + likelihoods_export;
-
-                            appendToTextArea(summary_msg);
+                            prepareInitializationLog();
 
                             try {
                                 Core.init();
-                                Core.resume_SwarmPositioning();
+                                Core.resumeSwarmPositioning();
 
                             } catch (Exception ex) {
                                 throw new RuntimeException(ex);
@@ -1208,9 +1182,7 @@ public class SimApp extends Frame {
                         SimApp.controller_thread.start();
 
                     }
-                    
-                    
-                    
+
                     // Initiate the automated resumer
                     //autoOptimizationResumer();
 
@@ -1228,11 +1200,6 @@ public class SimApp extends Frame {
 
 
 
-
-
-
-
-
                 } catch (Exception ex) {
                     ex.printStackTrace();
                     StackTraceElement[] stackTraceElements = ex.getStackTrace();
@@ -1244,26 +1211,57 @@ public class SimApp extends Frame {
             }
             else {
                 System.out.println("Stopping Optimization");
-
+                // TODO Set a flag for stopping the optimization
                 SimApp.go_Toggle_btn.setText("GO");
             }
         }
 
-        private void getCurrentOptimizationParameters() {
+        private void prepareInitializationLog() {
+            String results_per_selection;
+            // Get the state of the results_per_step_btn CustomCheckbox
+            if (SimApp.results_per_step_btn.getState()){
+                results_per_selection = "Step";
+            }
+            else{
+                results_per_selection = "Cycle";
+            }
+
+            String kNN_for_beliefs_strength_check = "\nkNN to consider for the Beliefs-Strength check: " + SimApp.kNearestNeighbours_for_BeliefsStrength_inputTextField.getText() + " Neighbors\n";
+            String likelihoods_export = "None]\n";
+            if (SimApp.export_ProductLikelihood_WolframPlot_function_btn.getState()){
+                likelihoods_export = "Wolfram Plot]\n";
+            }
+            String summary_msg ="\n=========== Optimization Initiated ===========" +
+                    "\nExport folder: " + SimApp.output_iterated_results_folder_path +
+                    "\nMax step-optimization runtime per thread: " + SimApp.max_optimization_time_per_thread_inputTextField.getText() + "ms" +
+                    "\nMin effective measurement value: " + SimApp.min_effective_measurement_inputTextField.getText() + "units" +
+                    "\nftol: " + ftol +
+                    "\nIterations: " + optimization_iterations_per_thread +
+                    "\nResults per: " + results_per_selection +
+                    kNN_for_beliefs_strength_check +
+                    "Likelihoods export: [" + likelihoods_export;
+
+            appendToTextArea(summary_msg);
+        }
+
+        private void getGuiOptimizationParameters() {
             // Set user's optimization parameters
             // Booleans
-            SimApp.results_per_step = SimApp.results_per_step_btn.isEnabled();
-            SimApp.results_per_cycle = SimApp.results_per_cycle_btn.isEnabled();
-            SimApp.ble_model = SimApp.ble_model_btn.isEnabled();
-            SimApp.uwb_model = SimApp.uwb_model_btn.isEnabled();
-            SimApp.export_ProductLikelihood_WolframPlot = SimApp.export_ProductLikelihood_WolframPlot_function_btn.isEnabled();
+            SimApp.results_per_step = SimApp.results_per_step_btn.getState();
+            System.out.println(SimApp.results_per_step);
+            SimApp.results_per_cycle = SimApp.results_per_cycle_btn.getState();
+            System.out.println(SimApp.results_per_cycle);
+            SimApp.ble_model = SimApp.ble_model_btn.getState();
+            System.out.println(SimApp.ble_model);
+            SimApp.uwb_model = SimApp.uwb_model_btn.getState();
+            System.out.println(SimApp.uwb_model);
+            SimApp.export_ProductLikelihood_WolframPlot = SimApp.export_ProductLikelihood_WolframPlot_function_btn.getState();
             SimApp.plotResolution = Integer.parseInt(SimApp.plotResolution_inputTextField.getText());
 
             // Values
             SimApp.min_effective_measurement = Integer.parseInt(SimApp.min_effective_measurement_inputTextField.getText());
             SimApp.kNearestNeighbours_for_BeliefsStrength = Integer.parseInt(SimApp.kNearestNeighbours_for_BeliefsStrength_inputTextField.getText());
             SimApp.initial_Map_Extend = Integer.parseInt(SimApp.initial_Map_Extend_inputTextField.getText());
-            SimApp.seed = Integer.parseInt(SimApp.seed_inputTextField.getText());
             SimApp.current_eval_iteration = Integer.parseInt(SimApp.eval_iteration_inputTextField.getText());
             SimApp.threads = Integer.parseInt(SimApp.threads_inputTextField.getText());
             SimApp.optimization_iterations_per_thread = Integer.parseInt(SimApp.optimization_iterations_per_thread_inputTextField.getText());
@@ -1274,6 +1272,8 @@ public class SimApp extends Frame {
 
             MathEngine.bestLikelihood = Double.NEGATIVE_INFINITY; // POSITIVE_INFINITY // NEGATIVE_INFINITY;
             MathEngine.swarmPositioningOptimizers = new Optimizer[SimApp.threads];
+
+            SimApp.random.setSeed(Long.parseLong(SimApp.seed_inputTextField.getText()));
         }
     }
 
@@ -1346,7 +1346,6 @@ public class SimApp extends Frame {
         });
         SimApp.t1.start();
     }
-
 
     // Keep in mind that when the user requests from the optimization to cancel, he needs to wait for some time until
     // the optimization reaches the point where stopping flag is checked

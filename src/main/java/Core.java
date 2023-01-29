@@ -214,7 +214,7 @@ public class Core {
         fstream.close();
     }
 
-    static void resume_SwarmPositioning() throws Exception {
+    static void resumeSwarmPositioning() throws Exception {
         SimApp.optimization_running = true;
 
         SimApp.appendToTextArea("Position Estimations:");
@@ -222,11 +222,10 @@ public class Core {
         // Check if there is no remaining step from previous unfinished cycles
         if (SimApp.temp_OrderedRemoteNodeIDs.size()==0){
 
-            if (!SimApp.headless_mode){
-                // We align the swarm based on the principal spatial variation for better visualization in GUI
-                // MathEngine.align_Swarm();
-                // TODO we need to do that only for visualization purposes
-            }
+            // When in GUI mode, we can align the swarm based on a principal spatial variation for better visualization
+//            if (!SimApp.headless_mode){
+//                MathEngine.align_Swarm();
+//            }
 
             // We start a new Cycle. At this point, sortNodesByBeliefsStrength() has already ordered the nodes.
             SimApp.temp_OrderedRemoteNodeIDs.addAll(SimApp.OrderedByBeliefsStrength_NodeIDs);
@@ -237,7 +236,7 @@ public class Core {
         }
 
         // Check if the user wants to get results per step
-        if (!SimApp.headless_mode && SimApp.results_per_step_btn.getState()){
+        if (SimApp.results_per_step){
             SimApp.stepCounter = SimApp.stepCounter + 1;
 
             Node currentNode = SimApp.nodeID_to_nodeObject.get(SimApp.temp_OrderedRemoteNodeIDs.remove(0));
@@ -245,10 +244,11 @@ public class Core {
 
             //currentNode = 6; // Set this manually for debugging purposes
 
-            double[] new_current_position = MathEngine.findBestPositionForCurrentNode(currentNode, SimApp.cycleCounter, SimApp.stepCounter); // Java
+            double[] new_current_position = MathEngine.findBestPositionForCurrentNode(
+                    currentNode, SimApp.cycleCounter, SimApp.stepCounter);
 
             if (new_current_position != null){
-                currentNode.update_CurrentNodePos(new_current_position[0], new_current_position[1]);
+                currentNode.updateCurrentNodePos(new_current_position[0], new_current_position[1]);
             }
 
             MapField.updateMapExtent();
@@ -283,7 +283,7 @@ public class Core {
                         SimApp.nodeID_to_nodeObject.get(currentNodeID), SimApp.cycleCounter, SimApp.stepCounter);
 
                 if (new_current_position != null){
-                    currentNode.update_CurrentNodePos(new_current_position[0], new_current_position[1]);
+                    currentNode.updateCurrentNodePos(new_current_position[0], new_current_position[1]);
                 }
 
                 MapField.updateMapExtent();
@@ -338,7 +338,7 @@ public class Core {
         }
 
         // Check if the user wants to get results per step
-        if (SimApp.results_per_step_btn.getState()){
+        if (SimApp.results_per_step){
 
             SimApp.stepCounter = SimApp.stepCounter + 1;
 
@@ -347,18 +347,19 @@ public class Core {
 
             //currentNode = 6; // Set this manually for debugging purposes
 
-            double[] new_current_position = MathEngine.findBestPositionForCurrentNode(currentNode, SimApp.cycleCounter, SimApp.stepCounter);
+            double[] new_current_position = MathEngine.findBestPositionForCurrentNode(
+                    currentNode, SimApp.cycleCounter, SimApp.stepCounter);
 
             // We use the same optimization function to publish the likelihood, before updating the nodes' positions
             MathEngine.publishResultsInGUI(SimApp.cycleCounter, SimApp.stepCounter, currentNode);
 
             if (new_current_position != null){
-                currentNode.update_CurrentNodePos(new_current_position[0], new_current_position[1]);
+                currentNode.updateCurrentNodePos(new_current_position[0], new_current_position[1]);
             }
 
             MapField.updateMapExtent();
 
-            // todo use this for debugging whenever needed
+            // To use this for debugging whenever needed
             /*
             if (resetAll_CurrentNodePos_to_TruePos){
                 reset_CurrentNodePos_to_TruePos();
@@ -388,12 +389,13 @@ public class Core {
 
                 // Check whether we are currently at the last step
                 if (last_step){
+                    System.out.println("Updating the Canvas now");
                     // We use the same optimization function to publish the likelihood, before updating the nodes' positions
                     MathEngine.publishResultsInGUI(SimApp.cycleCounter, SimApp.stepCounter, currentNode);
                 }
 
                 if (new_current_position != null){
-                    currentNode.update_CurrentNodePos(new_current_position[0], new_current_position[1]);
+                    currentNode.updateCurrentNodePos(new_current_position[0], new_current_position[1]);
                 }
 
                 MapField.updateMapExtent();
@@ -416,7 +418,7 @@ public class Core {
     static private void reset_CurrentNodePos_to_TruePos(){
         // Loop throughout all Nodes
         for (Node node: SimApp.nodeID_to_nodeObject.values()){
-            node.update_CurrentNodePos(node.true_relative_x, node.true_relative_y);
+            node.updateCurrentNodePos(node.true_relative_x, node.true_relative_y);
         }
     }
 }
