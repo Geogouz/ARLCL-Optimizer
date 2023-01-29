@@ -1,14 +1,4 @@
 import org.jzy3d.chart.Chart;
-import org.jzy3d.chart.factories.AWTChartFactory;
-import org.jzy3d.chart.factories.IChartFactory;
-import org.jzy3d.colors.ColorMapper;
-import org.jzy3d.colors.colormaps.ColorMapRainbow;
-import org.jzy3d.maths.Range;
-import org.jzy3d.plot3d.builder.Func3D;
-import org.jzy3d.plot3d.builder.SurfaceBuilder;
-import org.jzy3d.plot3d.builder.concrete.OrthonormalGrid;
-import org.jzy3d.plot3d.primitives.Shape;
-import org.jzy3d.plot3d.rendering.canvas.Quality;
 
 import javax.imageio.ImageIO;
 import javax.swing.*;
@@ -38,7 +28,7 @@ import static org.jzy3d.plot3d.primitives.SampleGeom.surface;
 
 public class SimApp extends Frame {
 
-    static String[] wolfram_engine_args;
+    static Frame app;
 
     static boolean headless_mode;
 
@@ -93,6 +83,12 @@ public class SimApp extends Frame {
 
     static String previous_valid_project_name = "";
     static String previous_valid_plot_resolution = "";
+
+    static Component chart_plot_canvas;
+    static Component labels_plot_canvas;
+
+    static Chart chart_plot;
+    static Chart labels_plot;
 
     static CustomTextArea outputTerminal;
     static CustomTextArea productLikelihood_WolframPlot_LabelArea;
@@ -230,9 +226,9 @@ public class SimApp extends Frame {
 
             // We ensure first that the required wolfram math executable is available right next to the optimizer's Jar
             try {
-                new SimApp();
+                app = new SimApp();
             } catch (Exception e) {
-                System.out.println("Failed extracting WolframEngine");
+                System.out.println("SimApp failure");
                 throw new RuntimeException(e);
             }
         }
@@ -421,11 +417,11 @@ public class SimApp extends Frame {
 
 
 
-    public SimApp() {
+    public SimApp() throws Exception {
         setLayout(null);
         setTitle("Swarm Positioning");
 
-        final int window_width = 1900;
+        final int window_width = 1465;
         final int window_height = 1000;
         final int bar_height = 32;
         final int settings_panel_height = 360;
@@ -438,7 +434,7 @@ public class SimApp extends Frame {
         final int medium_text_height = 34;
         final int value_text_width = 50;
 
-        final int c1_x = 1370;
+        final int c1_x = window_width-530;
         final int c1_content_width = normal_gap;
         final int c2_x = c1_x + c1_content_width + tiny_gap;
         final int c2_content_width = normal_gap;
@@ -450,10 +446,10 @@ public class SimApp extends Frame {
         final int r2_y = bar_height + window_height - settings_panel_height + small_text_height + tiny_gap;
 
 
-        Component plot_area = MathEngine.generatePlot(true);
-        plot_area.setBounds(0, bar_height, c1_x-2,window_height-bar_height-medium_text_height-1);
-        add(plot_area, BorderLayout.CENTER);
-
+        SimApp.chart_plot_canvas = MathEngine.getLikelihoodFunction(null);
+        //SimApp.plot_area.setBounds(0, bar_height, c1_x-2,window_height-bar_height-medium_text_height-1);
+        SimApp.chart_plot_canvas.setBounds(0, bar_height, window_height-bar_height-medium_text_height-1,window_height-bar_height-medium_text_height-1);
+        add(SimApp.chart_plot_canvas, BorderLayout.CENTER);
 
 
         SimApp.outputTerminal = new CustomTextArea("",2,40, TextArea.SCROLLBARS_VERTICAL_ONLY);
@@ -930,7 +926,7 @@ public class SimApp extends Frame {
         }
     }
 
-    static void updateCanvasPlot(String last_generated_image_path){
+    static void loadImgToGUI(String last_generated_image_path){
 
         // Get the last generated IMG result
         File fileInput = new File(last_generated_image_path);
@@ -1139,8 +1135,8 @@ public class SimApp extends Frame {
 
             SimApp.outpath_results_folder_path = fd.getDirectory();
             SimApp.loaded_db_name_LabelArea.setBackground(Color.white);
-            SimApp.loaded_db_name_LabelArea.setText(SimApp.clean_evaluated_scenario_name + " at " + fd.getDirectory());
-
+            //SimApp.loaded_db_name_LabelArea.setText(SimApp.clean_evaluated_scenario_name + " at " + fd.getDirectory());
+            SimApp.loaded_db_name_LabelArea.setText(SimApp.clean_evaluated_scenario_name);
             SimApp.go_Toggle_btn.setVisible(true);
 
             //System.out.println(evaluated_scenario_name + " database in " + input_file_path + " loaded."); // TODO: Add it on terminal
@@ -1446,22 +1442,19 @@ public class SimApp extends Frame {
         return directoryToBeEmptied.delete();
     }
 
-    static void writeString2File(String filename, String data, boolean export_likelihood){
+    static void writeString2File(String filename, String data){
 
-        String model_plot_str_addon = "";
-        if (export_likelihood){
-            model_plot_str_addon = "model, ";
-        }
+        System.out.println("Data for exporting: " + data);
 
         try (PrintWriter out = new PrintWriter(filename)) {
             out.println(data.substring(0, data.lastIndexOf("\n")));
             // Make a check here to see if the list containing the effective_nodes has the same size as the entire Node db-1
             // This means that there is no non-Effective Node. Hence, we need to exclude Plot B
             if (SimApp.effective_remoteNodes.size() == (SimApp.nodeID_to_nodeObject.size()-1)){
-                out.println("Show[" + model_plot_str_addon + "plotA, plotC]");
+                out.println("Show[model, plotA, plotC]");
             }
             else{
-                out.println("Show[" + model_plot_str_addon + "plotA, plotB, plotC]");
+                out.println("Show[model, plotA, plotB, plotC]");
             }
 
         } catch (FileNotFoundException e) {

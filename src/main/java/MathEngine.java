@@ -1,17 +1,24 @@
 import flanagan.math.MaximisationFunction;
 import org.apache.commons.math3.stat.regression.SimpleRegression;
 import org.apache.commons.math3.util.FastMath;
-import org.jzy3d.chart.Chart;
 import org.jzy3d.chart.factories.AWTChartFactory;
 import org.jzy3d.chart.factories.IChartFactory;
 import org.jzy3d.colors.ColorMapper;
+import org.jzy3d.colors.colormaps.ColorMapHotCold;
 import org.jzy3d.colors.colormaps.ColorMapRainbow;
+import org.jzy3d.maths.Coord3d;
 import org.jzy3d.maths.Range;
 import org.jzy3d.plot3d.builder.Func3D;
 import org.jzy3d.plot3d.builder.SurfaceBuilder;
 import org.jzy3d.plot3d.builder.concrete.OrthonormalGrid;
+import org.jzy3d.plot3d.primitives.Scatter;
 import org.jzy3d.plot3d.primitives.Shape;
 import org.jzy3d.plot3d.rendering.canvas.Quality;
+import org.jzy3d.plot3d.text.ITextRenderer;
+import org.jzy3d.plot3d.text.drawable.DrawableTextWrapper;
+import org.jzy3d.plot3d.text.renderers.TextRenderer;
+import org.jzy3d.plot3d.transform.squarifier.XZSquarifier;
+import org.jzy3d.colors.Color;
 
 import java.awt.*;
 import java.math.BigDecimal;
@@ -34,7 +41,7 @@ class MathEngine {
     static Optimizer[] swarmPositioningOptimizers;
 
     static void generateTheOptimizerThreads(){
-        System.out.println(MathEngine.swarmPositioningOptimizers.length);
+        // System.out.println(MathEngine.swarmPositioningOptimizers.length);
         // Generate as many Optimizers as the available Cores on the machine
         for (int thread = 0; thread< SimApp.threads; thread++){
             // Generate a new optimizer and add it to the thread mapper
@@ -117,7 +124,7 @@ class MathEngine {
         return orderedByLastCycleOrientation_NodeIDs;
     }
 
-    private static ArrayList[] collectIndividualMathematicaPlotComponents(Node current_node){
+    private static ArrayList[] collectComponentsForWolframPlotSections(Node current_node){
 
         System.out.println("Collecting individual mathematica plot components for node " + current_node.id);
 
@@ -127,18 +134,18 @@ class MathEngine {
         // Check if the user has selected to export also the ProductLikelihood
         if (SimApp.headless_mode || SimApp.export_ProductLikelihood_WolframPlot_function_btn.getState()){
             // Create the Wolfram CMD
-            productLikelihoodComponents = getWolframFunctionComponentsWithNeighborBeliefsForNode(current_node);
+            productLikelihoodComponents = getWolframFunctionComponentsOfNeighborBeliefsForNode(current_node);
         }
 
         ArrayList[] mathematica_components = new ArrayList[2];
 
-        mathematica_components[0] = getWolframFunctionWithNeighborBeliefsForNode(current_node);
+        mathematica_components[0] = buildListPlotSectionsOfWolframCommand(current_node);
         mathematica_components[1] = productLikelihoodComponents;
 
         return mathematica_components;
     }
 
-    private static ArrayList getWolframFunctionWithNeighborBeliefsForNode(Node current_node){
+    private static ArrayList buildListPlotSectionsOfWolframCommand(Node current_node){
 
         StringBuilder temp_EffectiveNode_Pos_component = new StringBuilder();
         temp_EffectiveNode_Pos_component.append("plotA = ListPlot[\n  {");
@@ -241,7 +248,7 @@ class MathEngine {
         return positionsCanvasPlot_WolframCMD_ArrayListContainer;
     }
 
-    private static ArrayList getWolframFunctionComponentsWithNeighborBeliefsForNode(Node current_node){
+    private static ArrayList getWolframFunctionComponentsOfNeighborBeliefsForNode(Node current_node){
 
         ArrayList productLikelihoodComponents = new ArrayList<>();
 
@@ -283,39 +290,24 @@ class MathEngine {
                     "results.log"
             ).toString();
 
-            ArrayList<String>[] mathematica_plot_components = collectIndividualMathematicaPlotComponents(currentNode);
+            ArrayList<String>[] mathematica_plot_components = collectComponentsForWolframPlotSections(currentNode);
 
             String ProductLikelihood_WolframCMD = "";
 
-            // Check if the user has selected to export also the ProductLikelihood
-            if (SimApp.headless_mode || SimApp.export_ProductLikelihood_WolframPlot_function_btn.getState()){
-                // Create the Wolfram command
-                ProductLikelihood_WolframCMD = buildProductLikelihoodWolframCMD(mathematica_plot_components[1]);
-            }
+            // Create the Wolfram command
+            ProductLikelihood_WolframCMD = buildFunctionSectionOfWolframCommand(mathematica_plot_components[1]);
 
             // Execute the Wolfram CMD that will generate the Canvas contents (i.e. the node's positions)
             String NodePos_WolframExportCMD;
 
-            //Add to below (If we want to show also likelihood)
-            boolean export_likelihood = false;
-            if (SimApp.headless_mode || SimApp.export_ProductLikelihood_WolframPlot_function_btn.getState()){
-                // Generate the final Wolfram command which we need to execute
-                NodePos_WolframExportCMD = buildExportWolframCMD(
-                        ProductLikelihood_WolframCMD + mathematica_plot_components[0].get(0),
-                        NodePos_Plot_filename,
-                        "model, ");
-                export_likelihood = true;
-            }
-            else {
-                // Generate the final Wolfram command which we need to execute
-                NodePos_WolframExportCMD = buildExportWolframCMD(
-                        mathematica_plot_components[0].get(0), NodePos_Plot_filename, "");
-            }
+            // Generate the final Wolfram command which we need to execute
+            NodePos_WolframExportCMD = mergeLikelihoodComponentsToWolframFunction(
+                    ProductLikelihood_WolframCMD + mathematica_plot_components[0].get(0),
+                    NodePos_Plot_filename,
+                    "model, ");
 
             // Export the String to a file
-            SimApp.writeString2File(NodePos_CMD_filename, NodePos_WolframExportCMD, export_likelihood);
-
-            //SimApp.rendering_wolfram_data = false; // TODO
+            SimApp.writeString2File(NodePos_CMD_filename, NodePos_WolframExportCMD);
         }
     }
 
@@ -339,84 +331,169 @@ class MathEngine {
                 "results.log"
         ).toString();
 
-        ArrayList<String>[] mathematica_plot_components = collectIndividualMathematicaPlotComponents(currentNode);
+        ArrayList<String>[] mathematica_components_for_plot_sections = collectComponentsForWolframPlotSections(currentNode);
 
         String ProductLikelihood_WolframCMD = "";
 
         // Check if the user has selected to export also the ProductLikelihood
         if (SimApp.export_ProductLikelihood_WolframPlot_function_btn.getState()){
             // Create the Wolfram command
-            ProductLikelihood_WolframCMD = buildProductLikelihoodWolframCMD(mathematica_plot_components[1]);
+            ProductLikelihood_WolframCMD = buildFunctionSectionOfWolframCommand(mathematica_components_for_plot_sections[1]);
         }
 
         // Execute the Wolfram CMD that will generate the Canvas contents (i.e. the node's positions)
         String NodePos_WolframExportCMD;
 
         //Add to below (If we want to show also likelihood)
-        boolean export_likelihood = false;
         if (SimApp.export_ProductLikelihood_WolframPlot_function_btn.getState()){
             // Generate the final Wolfram command which we need to execute
-            NodePos_WolframExportCMD = buildExportWolframCMD(
-                    ProductLikelihood_WolframCMD + mathematica_plot_components[0].get(0),
+            NodePos_WolframExportCMD = mergeLikelihoodComponentsToWolframFunction(
+                    ProductLikelihood_WolframCMD + mathematica_components_for_plot_sections[0].get(0),
                     NodePos_Plot_filename,
                     "model, ");
-            export_likelihood = true;
         }
         else {
             // Generate the final Wolfram command which we need to execute
-            NodePos_WolframExportCMD = buildExportWolframCMD(
-                    mathematica_plot_components[0].get(0), NodePos_Plot_filename, "");
+            NodePos_WolframExportCMD = mergeLikelihoodComponentsToWolframFunction(
+                    mathematica_components_for_plot_sections[0].get(0), NodePos_Plot_filename, "");
         }
 
-        generatePlot(false);
+        // Remove the previous canvases and add the new generated one
+        Rectangle chart_plot_canvas_bounds = SimApp.chart_plot_canvas.getBounds();
+        SimApp.app.remove(SimApp.chart_plot_canvas);
+        SimApp.chart_plot.dispose();
+
+        SimApp.chart_plot_canvas = getLikelihoodFunction(currentNode);
+        SimApp.chart_plot_canvas.setBounds(chart_plot_canvas_bounds);
+        SimApp.app.add(SimApp.chart_plot_canvas);
+
+
+        System.out.println("Started canvas refreshing");
+        SimApp.app.validate();
+//        SimApp.app.repaint();
+        System.out.println("Finished canvas refreshing");
 
         // Export the String to a file
-        SimApp.writeString2File(NodePos_CMD_filename, NodePos_WolframExportCMD, export_likelihood);
+        SimApp.writeString2File(NodePos_CMD_filename, NodePos_WolframExportCMD);
 
         //SimApp.rendering_wolfram_data = false; // TODO
 
         // This assumes that the plot has been rendered and stored by Mathematica
-        SimApp.updateCanvasPlot(NodePos_Plot_filename);
+        // SimApp.loadImgToGUI(NodePos_Plot_filename);
     }
 
-    public static Component generatePlot(boolean init) {
+    public static Component getLikelihoodFunction(Node current_node) {
 
-        if (init){
+//        System.out.println("Building the canvas");
+
+        if (current_node == null){
             IChartFactory f = new AWTChartFactory();
-            Chart chart = f.newChart(Quality.Advanced().setHiDPIEnabled(true));
-            chart.view2d();
-            return (Component) chart.getCanvas();
+            SimApp.chart_plot = f.newChart(Quality.Advanced().setHiDPIEnabled(true));
+            SimApp.chart_plot.view2d();
+            SimApp.chart_plot.getCanvas().getView().setSquarifier(new XZSquarifier());
+            SimApp.chart_plot.getCanvas().getView().setSquared(true);
+            return (Component) SimApp.chart_plot.getCanvas();
         }
         else{
-            System.out.println("Boom");
-            double coordinates = MathEngine.swarmPositioningOptimizers[0].position_likelihood.function(new double[] {300, 300});
 
-            System.out.println(coordinates);
+            //double coordinates = MathEngine.swarmPositioningOptimizers[0].position_likelihood.function(new double[] {300, 300});
+            //System.out.println(coordinates);
 
-            // Define a function to plot
-            Func3D func = new Func3D((x, y) -> x * Math.sin(x * y));
-            Range range = new Range(-3, 3);
-            int steps = 80;
+            Func3D func = new Func3D(
+                    (x, y) -> MathEngine.swarmPositioningOptimizers[0].position_likelihood.function(new double[] {x, y})
+            );
+
+            Range x_range = MapField.getXRange();
+            Range y_range = MapField.getYRange();
+            int steps = 100;
 
             // Create the object to represent the function over the given range.
-            final Shape surface = new SurfaceBuilder().orthonormal(new OrthonormalGrid(range, steps), func);
-            surface.setColorMapper(new ColorMapper(new ColorMapRainbow(), surface, new org.jzy3d.colors.Color(1, 1, 1, .5f)));
+            final Shape surface = new SurfaceBuilder().orthonormal(
+                    new OrthonormalGrid(x_range, steps, y_range, steps), func
+            );
+
+            surface.setColorMapper(
+                    new ColorMapper(
+                            new ColorMapHotCold(), surface, new org.jzy3d.colors.Color(1, 1, 1, .5f)
+                    )
+            );
+
             surface.setFaceDisplayed(true);
+            surface.setLegendDisplayed(false);
             surface.setWireframeDisplayed(false);
 
-            // Create a chart
-            //GLCapabilities c = new GLCapabilities(GLProfile.get(GLProfile.GL3));
-            //IPainterFactory p = new AWTPainterFactory(c);
+            SimApp.chart_plot = new AWTChartFactory().newChart(Quality.Advanced().setHiDPIEnabled(true));
+            SimApp.chart_plot.view2d();
+//            SimApp.chart_plot.getCanvas().getView().setSquarifier(new XZSquarifier());
+//            SimApp.chart_plot.getCanvas().getView().setSquared(false);
 
-            Chart chart = new AWTChartFactory().newChart(Quality.Advanced().setHiDPIEnabled(true));
-            chart.view2d();
-            chart.getScene().getGraph().add(surface);
-            //chart.open();
-            return (Component) chart.getCanvas();
+            Scatter scatter = getScatterPlot(current_node);
+            List<DrawableTextWrapper> node_labels = getNodeLabels();
+
+            SimApp.chart_plot.getScene().getGraph().add(surface);
+            SimApp.chart_plot.getScene().add(scatter);
+            SimApp.chart_plot.getScene().add(node_labels);
+
+            return (Component) SimApp.chart_plot.getCanvas();
         }
     }
 
-    private static String buildProductLikelihoodWolframCMD(ArrayList<String> productLikelihoodComponents){
+    public static Scatter getScatterPlot(Node current_node){
+
+        // Prepare the structures to hold the drawing properties
+        int size = SimApp.nodeID_to_nodeObject.size();
+
+        Coord3d[] points = new Coord3d[size];
+        Color[] colors = new Color[size];
+
+        // Add the properties of current Node
+        points[current_node.id-1] = new Coord3d(current_node.current_relative_x, current_node.current_relative_y, -1);
+        colors[current_node.id-1] = new Color(255, 0, 0);
+
+        for (Node remote_node: SimApp.nodeID_to_nodeObject.values()){
+            // Make sure we are not considering the same
+            if (remote_node.id != current_node.id){
+                // Check if this remote Node is among the effective ones
+                if (SimApp.effective_remoteNodes.contains(remote_node.id)){
+                    // Add the properties of its effective Neighbors
+                    points[remote_node.id-1] = new Coord3d(remote_node.current_relative_x, remote_node.current_relative_y, -1);
+                    colors[remote_node.id-1] = new Color(0, 255, 0);
+                }
+                else{
+                    // Add the properties of the rest
+                    points[remote_node.id-1] = new Coord3d(remote_node.current_relative_x, remote_node.current_relative_y, -1);
+                    colors[remote_node.id-1] = new Color(0, 0, 255);
+                }
+            }
+        }
+
+        return new Scatter(points, colors, 15);
+    }
+
+
+    public static List<DrawableTextWrapper> getNodeLabels(){
+
+        // Prepare the structures to hold the label properties
+        DrawableTextWrapper[] node_ides_to_render = new DrawableTextWrapper[SimApp.nodeID_to_nodeObject.size()];
+        //DefaultTextStyle text_style = new DefaultTextStyle();
+        ITextRenderer node_ids_renderer = new TextRenderer();
+
+        for (Node node: SimApp.nodeID_to_nodeObject.values()){
+            // Add the label of Node
+            node_ides_to_render[node.id-1] = new DrawableTextWrapper(
+                    String.valueOf(node.id),
+                    new Coord3d(node.current_relative_x, node.current_relative_y+26,0),
+                    Color.BLACK, node_ids_renderer
+            );
+        }
+
+        return Arrays.asList(node_ides_to_render);
+    }
+
+
+    private static String buildFunctionSectionOfWolframCommand(ArrayList<String> productLikelihoodComponents){
+
+        System.out.println("Building function section of wolfram command");
 
         StringBuilder temp_distance_likelihood_function = new StringBuilder();
 
@@ -450,7 +527,10 @@ class MathEngine {
         return plot_cmd;
     }
 
-    private static String buildExportWolframCMD(String cmd_to_export, String filename, String extra_items_to_show){
+    private static String mergeLikelihoodComponentsToWolframFunction(String cmd_to_export, String filename, String extra_items_to_show){
+
+        System.out.println("Likelihood components collected. Merging function.");
+
         // Make a check here to see if the list containing the effective_nodes has the same size as the entire Node db-1
         // This means that there is no non-Effective Node. Hence, we need to exclude Plot B
         if (SimApp.effective_remoteNodes.size() == (SimApp.nodeID_to_nodeObject.size()-1)){

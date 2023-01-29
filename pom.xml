@@ -44,52 +44,11 @@
             <version>3.6.1</version>
         </dependency>
 
-        <dependency>
-            <groupId>org.gephi</groupId>
-            <artifactId>graph-api</artifactId>
-            <version>0.10.1</version>
-        </dependency>
 
-        <dependency>
-            <groupId>org.gephi</groupId>
-            <artifactId>layout-plugin</artifactId>
-            <version>0.10.1</version>
-        </dependency>
-
-        <dependency>
-            <groupId>org.gephi</groupId>
-            <artifactId>preview-plugin</artifactId>
-            <version>0.10.1</version>
-        </dependency>
-
-        <dependency>
-            <groupId>org.jzy3d</groupId>
-            <artifactId>jzy3d-native-jogl-awt</artifactId>
-            <version>2.2.0</version>
-        </dependency>
-        <dependency>
-            <groupId>org.jzy3d</groupId>
-            <artifactId>jzy3d-native-jogl-swing</artifactId>
-            <version>2.2.0</version>
-        </dependency>
         <dependency>
             <groupId>org.jzy3d</groupId>
             <artifactId>jzy3d-native-jogl-newt</artifactId>
             <version>2.2.0</version>
-        </dependency>
-
-        <dependency>
-            <groupId>org.jzy3d</groupId>
-            <artifactId>jzy3d-tester-native</artifactId>
-            <version>2.2.0</version>
-
-        </dependency>
-
-        <dependency>
-            <groupId>org.jzy3d</groupId>
-            <artifactId>jzy3d-emul-gl-awt</artifactId>
-            <version>2.2.0</version>
-
         </dependency>
 
 

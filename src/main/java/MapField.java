@@ -1,3 +1,5 @@
+import org.jzy3d.maths.Range;
+
 public class MapField {
 
     static double global_minPlotX = 0.0D;
@@ -69,5 +71,20 @@ public class MapField {
         global_minPlotY = global_minPlotY - 1;
         global_maxPlotY = global_maxPlotY + 1;
 
+    }
+
+    public static Range getMinMaxRange() {
+        return new Range(
+                Math.min(global_minPlotX, global_minPlotY),
+                Math.max(global_maxPlotX, global_maxPlotY)
+        );
+    }
+
+    public static Range getXRange() {
+        return new Range(global_minPlotX, global_maxPlotX);
+    }
+
+    public static Range getYRange() {
+        return new Range(global_minPlotY, global_maxPlotY);
     }
 }
