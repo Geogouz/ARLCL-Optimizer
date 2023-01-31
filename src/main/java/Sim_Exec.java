@@ -1,5 +1,7 @@
 public class Sim_Exec {
-    static { /* works fine! ! */
+    static {
+        System.setProperty("java.util.Arrays.useLegacyMergeSort", "true");
+
         System.setProperty("java.awt.headless", "false"); //todo UBELIX requires this to be set to true
         System.out.println("Headless mode: " + java.awt.GraphicsEnvironment.isHeadless());
     }

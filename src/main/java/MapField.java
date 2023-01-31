@@ -73,18 +73,29 @@ public class MapField {
 
     }
 
+    public static double getMapMax() {
+        return Math.max(global_maxPlotX, global_maxPlotY);
+    }
+
+    public static double getMapMin() {
+        return Math.min(global_minPlotX, global_minPlotY);
+    }
+
     public static Range getMinMaxRange() {
-        return new Range(
-                Math.min(global_minPlotX, global_minPlotY),
-                Math.max(global_maxPlotX, global_maxPlotY)
-        );
+        return new Range(0, 500); // For a fixed range
+//        return new Range(
+//                Math.min(global_minPlotX, global_minPlotY),
+//                Math.max(global_maxPlotX, global_maxPlotY)
+//        );
     }
 
     public static Range getXRange() {
+//        return new Range(0, 500); // For a fixed range
         return new Range(global_minPlotX, global_maxPlotX);
     }
 
     public static Range getYRange() {
+//        return new Range(0, 500); // For a fixed range
         return new Range(global_minPlotY, global_maxPlotY);
     }
 }

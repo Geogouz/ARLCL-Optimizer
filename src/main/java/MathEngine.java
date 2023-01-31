@@ -1,26 +1,42 @@
+import com.jogamp.opengl.GLCapabilities;
+import com.jogamp.opengl.GLProfile;
 import flanagan.math.MaximisationFunction;
 import org.apache.commons.math3.stat.regression.SimpleRegression;
 import org.apache.commons.math3.util.FastMath;
-import org.jzy3d.chart.factories.AWTChartFactory;
-import org.jzy3d.chart.factories.IChartFactory;
+import org.jzy3d.chart.ChartLauncher;
+import org.jzy3d.chart.ContourChart;
+import org.jzy3d.chart.factories.*;
 import org.jzy3d.colors.ColorMapper;
-import org.jzy3d.colors.colormaps.ColorMapHotCold;
 import org.jzy3d.colors.colormaps.ColorMapRainbow;
+import org.jzy3d.colors.colormaps.ColorMapRainbowNoBorder;
+import org.jzy3d.contour.DefaultContourColoringPolicy;
+import org.jzy3d.contour.MapperContourMeshGenerator;
+import org.jzy3d.contour.MapperContourPictureGenerator;
+import org.jzy3d.maths.BoundingBox3d;
 import org.jzy3d.maths.Coord3d;
 import org.jzy3d.maths.Range;
+import org.jzy3d.painters.IPainter;
 import org.jzy3d.plot3d.builder.Func3D;
+import org.jzy3d.plot3d.builder.Mapper;
 import org.jzy3d.plot3d.builder.SurfaceBuilder;
 import org.jzy3d.plot3d.builder.concrete.OrthonormalGrid;
 import org.jzy3d.plot3d.primitives.Scatter;
 import org.jzy3d.plot3d.primitives.Shape;
+import org.jzy3d.plot3d.primitives.axis.ContourAxisBox;
+import org.jzy3d.plot3d.primitives.axis.layout.AxisLayout;
+import org.jzy3d.plot3d.primitives.contour.ContourLevel;
+import org.jzy3d.plot3d.primitives.contour.ContourMesh;
 import org.jzy3d.plot3d.rendering.canvas.Quality;
+import org.jzy3d.plot3d.rendering.view.modes.ViewPositionMode;
 import org.jzy3d.plot3d.text.ITextRenderer;
 import org.jzy3d.plot3d.text.drawable.DrawableTextWrapper;
 import org.jzy3d.plot3d.text.renderers.TextRenderer;
+
 import org.jzy3d.plot3d.transform.squarifier.XZSquarifier;
 import org.jzy3d.colors.Color;
 
 import java.awt.*;
+import java.awt.image.BufferedImage;
 import java.math.BigDecimal;
 
 import java.nio.file.Paths;
@@ -126,7 +142,7 @@ class MathEngine {
 
     private static ArrayList[] collectComponentsForWolframPlotSections(Node current_node){
 
-        System.out.println("Collecting individual mathematica plot components for node " + current_node.id);
+//        System.out.println("Collecting individual mathematica plot components for node " + current_node.id);
 
         // Hold all likelihood components and labels in the following variables
         ArrayList productLikelihoodComponents = null;
@@ -311,7 +327,7 @@ class MathEngine {
         }
     }
 
-    static void publishResultsInGUI(int cycle, int step, Node currentNode) throws Exception {
+    static void publishResultsInGUI(int cycle, int step, Node currentNode) {
 
         System.out.println("Publishing: " + SimApp.clean_evaluated_scenario_name + " Cycle:" + cycle);
 
@@ -367,84 +383,177 @@ class MathEngine {
         SimApp.chart_plot_canvas.setBounds(chart_plot_canvas_bounds);
         SimApp.app.add(SimApp.chart_plot_canvas);
 
-
-        System.out.println("Started canvas refreshing");
-        SimApp.app.validate();
-//        SimApp.app.repaint();
-        System.out.println("Finished canvas refreshing");
+        SimApp.chart_plot_canvas.repaint();
 
         // Export the String to a file
         SimApp.writeString2File(NodePos_CMD_filename, NodePos_WolframExportCMD);
-
-        //SimApp.rendering_wolfram_data = false; // TODO
-
-        // This assumes that the plot has been rendered and stored by Mathematica
-        // SimApp.loadImgToGUI(NodePos_Plot_filename);
     }
 
     public static Component getLikelihoodFunction(Node current_node) {
 
 //        System.out.println("Building the canvas");
 
-        if (current_node == null){
-            IChartFactory f = new AWTChartFactory();
-            SimApp.chart_plot = f.newChart(Quality.Advanced().setHiDPIEnabled(true));
+        if (current_node != null){
+            // Create a chart with contour axe box, and attach the contour picture
+            SimApp.chart_plot = new ContourChart(Quality.Advanced().setHiDPIEnabled(true));
             SimApp.chart_plot.view2d();
-            SimApp.chart_plot.getCanvas().getView().setSquarifier(new XZSquarifier());
-            SimApp.chart_plot.getCanvas().getView().setSquared(true);
-        }
-        else{
+//        SimApp.chart_plot.getCanvas().getView().setSquarifier(new XZSquarifier());
+//        SimApp.chart_plot.getCanvas().getView().setSquared(true);
 
             //double coordinates = MathEngine.swarmPositioningOptimizers[0].position_likelihood.function(new double[] {300, 300});
             //System.out.println(coordinates);
 
-            Func3D func = new Func3D(
-                    (x, y) -> MathEngine.swarmPositioningOptimizers[0].position_likelihood.function(new double[] {x, y})
-            );
+            // Show the extent only if resolution is set higher than 10
+            if (SimApp.plotResolution != 0){
 
-            Range x_range = MapField.getXRange();
-            Range y_range = MapField.getYRange();
-            int steps = 100;
+                Range x_range = MapField.getXRange();
+                Range y_range = MapField.getYRange();
 
-            // Create the object to represent the function over the given range.
-            final Shape surface = new SurfaceBuilder().orthonormal(
-                    new OrthonormalGrid(x_range, steps, y_range, steps), func
-            );
+            // For clipping the surface based on user's input
+            double map_max = MapField.getMapMax();
+            double map_min = MapField.getMapMin();
 
-            surface.setColorMapper(
-                    new ColorMapper(
-                            new ColorMapHotCold(), surface, new org.jzy3d.colors.Color(1, 1, 1, .5f)
-                    )
-            );
+//            Range plot_range = MapField.getMinMaxRange(); // For fixed aspect ratio
+//                Range x_range = new Range(
+//                        Math.max(current_node.current_relative_x-SimApp.plotResolution, map_min),
+//                        Math.min(current_node.current_relative_x+SimApp.plotResolution, map_max)
+//                );
+//                Range y_range = new Range(
+//                        Math.max(current_node.current_relative_y-SimApp.plotResolution, map_min),
+//                        Math.min(current_node.current_relative_y+SimApp.plotResolution, map_max)
+//                );
 
-            surface.setFaceDisplayed(true);
-            surface.setLegendDisplayed(false);
-            surface.setWireframeDisplayed(false);
+                // Compute the steps that will be sampled from the function
+//                int scaled_steps_based_on_selected_resolution = SimApp.plotResolution/5;
+//                int min_allowed_step = 5;
+//                int max_allowed_step = 300;
+//                int steps;
 
-            SimApp.chart_plot = new AWTChartFactory().newChart(Quality.Advanced().setHiDPIEnabled(true));
-            SimApp.chart_plot.view2d();
+//                if (scaled_steps_based_on_selected_resolution < min_allowed_step){
+//                    steps = min_allowed_step;
+//                }
+//                else steps = Math.min(scaled_steps_based_on_selected_resolution, max_allowed_step);
 
-            Scatter scatter = getScatterPlot(current_node);
-            List<DrawableTextWrapper> node_labels = getNodeLabels();
+                boolean surface_mode = false;
 
-            SimApp.chart_plot.getScene().getGraph().add(surface);
-            SimApp.chart_plot.getScene().add(scatter);
-            SimApp.chart_plot.getScene().add(node_labels);
+                if (surface_mode){
 
+                    // Part for creating a surface plot
+                    Func3D func = new Func3D(
+                            (x, y) -> MathEngine.swarmPositioningOptimizers[0].position_likelihood.function(new double[] {x, y})
+                    );
+                    int steps = 100;
+                    // Create the object to represent the function over the given range.
+                    final Shape surface_chart = new SurfaceBuilder().orthonormal(
+                            new OrthonormalGrid(x_range, steps, y_range, steps), func // For spanning across the entire plot
+                    );
+
+                    surface_chart.setColorMapper(
+                            new ColorMapper(
+                                    new ColorMapRainbow(),
+                                    surface_chart,
+                                    new org.jzy3d.colors.Color(1, 1, 1, .6f)
+                            )
+                    );
+                    surface_chart.setFaceDisplayed(true);
+                    surface_chart.setLegendDisplayed(false);
+                    surface_chart.setWireframeDisplayed(false);
+
+                    SimApp.chart_plot.getScene().getGraph().add(surface_chart);
+                }
+                else{
+                    // Part for creating a contours plot
+                    Mapper mapper = new Mapper(){
+                        public double f(double x, double y) {
+                            return MathEngine.swarmPositioningOptimizers[0].position_likelihood.function(new double[] {x, y});
+                        }
+                    };
+
+                    updateSurfaceWithContour(mapper, x_range, y_range);
+                }
+
+                Scatter nodes_scatter = getNodesScatter(current_node);
+            Scatter canvas_extent_scatter = getCanvasExtentScatter(map_max, map_min);
+                List<DrawableTextWrapper> node_labels = getNodeLabels();
+
+                SimApp.chart_plot.getView().getScene().add(nodes_scatter);
+            SimApp.chart_plot.getView().getScene().add(canvas_extent_scatter);
+                SimApp.chart_plot.getView().getScene().add(node_labels);
+                SimApp.chart_plot.view2d();
+                SimApp.chart_plot.addMouse();
+
+            }
+            return (Component) SimApp.chart_plot.getCanvas();
         }
-        return (Component) SimApp.chart_plot.getCanvas();
+        else{
+            SimApp.chart_plot = new ContourChart(Quality.Advanced().setHiDPIEnabled(true));
+            SimApp.chart_plot.view2d();
+            return (Component) SimApp.chart_plot.getCanvas();
+        }
     }
 
-    public static Scatter getScatterPlot(Node current_node){
+    public static void updateSurfaceWithContour(Mapper mapper, Range x_range, Range y_range) {
+        // Create the object to represent the function over the given range.
+        final Shape surface = new SurfaceBuilder().orthonormal(
+                new OrthonormalGrid(x_range, 10, y_range, 10), mapper // For spanning across the entire plot
+        );
+
+        ColorMapper myColorMapper = new ColorMapper(
+                new ColorMapRainbow(),
+                surface.getBounds().getZmin(),
+                MathEngine.bestLikelihood,
+                new Color(1,1,1,.2f)
+        );
+
+        surface.setDisplayed(false);
+//        surface.setColorMapper(myColorMapper);
+//        surface.setFaceDisplayed(true);
+//        surface.setWireframeDisplayed(false);
+
+        // Compute an image of the contour
+        MapperContourPictureGenerator contour = new MapperContourPictureGenerator(mapper, x_range, y_range);
+        BufferedImage contour_filled_image = contour.getFilledContourImage(
+                new DefaultContourColoringPolicy(myColorMapper),
+                SimApp.chart_plot_size,
+                SimApp.chart_plot_size,
+                40
+        );
+
+//        BufferedImage contour_image = contour.getContourImage(
+//                new DefaultContourColoringPolicy(myColorMapper),
+//                SimApp.chart_plot_size,
+//                SimApp.chart_plot_size,
+//                15
+//        );
+
+        SimApp.chart_plot = new ContourChart();
+        ContourAxisBox chart_axis = (ContourAxisBox) SimApp.chart_plot.getView().getAxis();
+        chart_axis.setContourImg(contour_filled_image, x_range, y_range);
+
+//        SimApp.chart_plot.getView().getScene().add(surface);
+
+//        ContourAxisBox chart_axis_2 = (ContourAxisBox) SimApp.chart_plot.getView().getAxis();
+//        chart_axis_2.setContourImg(contour_image, x_range, y_range);
+
+//        surface.setLegend(new ColorbarLegend(surface,
+//                SimApp.chart_plot.getView().getAxis().getLayout().getZTickProvider(),
+//                SimApp.chart_plot.getView().getAxis().getLayout().getZTickRenderer()));
+//        surface.setLegendDisplayed(true); // opens a colorbar on the right part of the display
+    }
+
+    public static Scatter getNodesScatter(Node current_node){
 
         // Prepare the structures to hold the drawing properties
         int size = SimApp.nodeID_to_nodeObject.size();
+
+        // Calculate the z position for the scatter-plot elements so that they are drawn above the function
+        double scatter_z = MathEngine.bestLikelihood + 800;
 
         Coord3d[] points = new Coord3d[size];
         Color[] colors = new Color[size];
 
         // Add the properties of current Node
-        points[current_node.id-1] = new Coord3d(current_node.current_relative_x, current_node.current_relative_y, -1);
+        points[current_node.id-1] = new Coord3d(current_node.current_relative_x, current_node.current_relative_y, scatter_z);
         colors[current_node.id-1] = new Color(255, 0, 0);
 
         for (Node remote_node: SimApp.nodeID_to_nodeObject.values()){
@@ -453,25 +562,54 @@ class MathEngine {
                 // Check if this remote Node is among the effective ones
                 if (SimApp.effective_remoteNodes.contains(remote_node.id)){
                     // Add the properties of its effective Neighbors
-                    points[remote_node.id-1] = new Coord3d(remote_node.current_relative_x, remote_node.current_relative_y, -1);
-                    colors[remote_node.id-1] = new Color(0, 255, 0);
+                    points[remote_node.id-1] = new Coord3d(remote_node.current_relative_x, remote_node.current_relative_y, scatter_z);
+                    colors[remote_node.id-1] = new Color(239, 253, 0);
                 }
                 else{
                     // Add the properties of the rest
-                    points[remote_node.id-1] = new Coord3d(remote_node.current_relative_x, remote_node.current_relative_y, -1);
-                    colors[remote_node.id-1] = new Color(0, 0, 255);
+                    points[remote_node.id-1] = new Coord3d(remote_node.current_relative_x, remote_node.current_relative_y, scatter_z);
+                    colors[remote_node.id-1] = new Color(53, 255, 227);
                 }
             }
         }
 
-        return new Scatter(points, colors, 15);
+        return new Scatter(points, colors, 25);
     }
 
+    public static Scatter getCanvasExtentScatter(double map_max, double map_min){
+
+        // Calculate the z position for the scatter-plot elements so that they are drawn above the function
+        double scatter_z = MathEngine.bestLikelihood;
+//        System.out.println(MathEngine.bestLikelihood);
+
+        // We use 4 to be able to add 4 labels for setting manually a fixed aspect ratio for the plot
+        // Prepare the points for defining the entire canvas
+        Coord3d[] canvas_corner_points = new Coord3d[4];
+        Color[] canvas_corner_colors = new Color[4];
+
+        canvas_corner_points[0] = new Coord3d(map_max, map_max, scatter_z);
+        canvas_corner_colors[0] = new Color(0, 0, 0);
+
+        canvas_corner_points[1] = new Coord3d(map_max, map_min, scatter_z);
+        canvas_corner_colors[1] = new Color(0, 0, 0);
+
+        canvas_corner_points[2] = new Coord3d(map_min, map_max, scatter_z);
+        canvas_corner_colors[2] = new Color(0, 0, 0);
+
+        canvas_corner_points[3] = new Coord3d(map_min, map_min, scatter_z);
+        canvas_corner_colors[3] = new Color(0, 0, 0);
+
+        return new Scatter(canvas_corner_points, canvas_corner_colors, 1);
+    }
 
     public static List<DrawableTextWrapper> getNodeLabels(){
 
+        // Calculate the z position for the scatter-plot elements so that they are drawn above the function
+        double labels_z = MathEngine.bestLikelihood + 1000;
+
         // Prepare the structures to hold the label properties
         DrawableTextWrapper[] node_ides_to_render = new DrawableTextWrapper[SimApp.nodeID_to_nodeObject.size()];
+
         //DefaultTextStyle text_style = new DefaultTextStyle();
         ITextRenderer node_ids_renderer = new TextRenderer();
 
@@ -479,7 +617,7 @@ class MathEngine {
             // Add the label of Node
             node_ides_to_render[node.id-1] = new DrawableTextWrapper(
                     String.valueOf(node.id),
-                    new Coord3d(node.current_relative_x, node.current_relative_y+26,0),
+                    new Coord3d(node.current_relative_x, node.current_relative_y, labels_z),
                     Color.BLACK, node_ids_renderer
             );
         }
@@ -487,10 +625,9 @@ class MathEngine {
         return Arrays.asList(node_ides_to_render);
     }
 
-
     private static String buildFunctionSectionOfWolframCommand(ArrayList<String> productLikelihoodComponents){
 
-        System.out.println("Building function section of wolfram command");
+//        System.out.println("Building function section of wolfram command");
 
         StringBuilder temp_distance_likelihood_function = new StringBuilder();
 
@@ -505,7 +642,7 @@ class MathEngine {
 
         String mathematica_likelihdood_function = "r[distanceX_, distanceY_] := (" + ProductFinalFunctionObject + ")";
         String plot_cmd = mathematica_likelihdood_function
-                + ")/ " + String.valueOf(bestLikelihood).replaceFirst("E-", "*^-") // Use extra ) for simplified UWB model
+                + ")/ " + String.valueOf(MathEngine.bestLikelihood).replaceFirst("E-", "*^-") // Use extra ) for simplified UWB model
                 + ";\n\n";
 
         plot_cmd = plot_cmd + "model = ContourPlot[r[distanceX, distanceY], " +
@@ -526,7 +663,7 @@ class MathEngine {
 
     private static String mergeLikelihoodComponentsToWolframFunction(String cmd_to_export, String filename, String extra_items_to_show){
 
-        System.out.println("Likelihood components collected. Merging function.");
+//        System.out.println("Likelihood components collected. Merging function.");
 
         // Make a check here to see if the list containing the effective_nodes has the same size as the entire Node db-1
         // This means that there is no non-Effective Node. Hence, we need to exclude Plot B
@@ -547,7 +684,7 @@ class MathEngine {
         // Start each thread worker or notify it to continue with the optimization (i.e. escape the waiting state)
         for (Optimizer optimizer: swarmPositioningOptimizers){
             // Reset the maxLikelihood
-            bestLikelihood = Double.NEGATIVE_INFINITY;
+            MathEngine.bestLikelihood = Double.NEGATIVE_INFINITY;
             optimizer.start();
         }
         try {
@@ -562,9 +699,9 @@ class MathEngine {
         double[] best_params = new double[0];
         // At this point, all thread workers have finished
         for (Optimizer optimizer: swarmPositioningOptimizers){
-            if (bestLikelihood < optimizer.optimal_probability){ // < optimizer.optimal_probability){
-                bestLikelihood = optimizer.optimal_probability;
-                //System.out.println(bestLikelihood);
+            if (MathEngine.bestLikelihood < optimizer.optimal_probability){ // < optimizer.optimal_probability){
+                MathEngine.bestLikelihood = optimizer.optimal_probability;
+                //System.out.println(MathEngine.bestLikelihood);
                 best_params = optimizer.best_params;
             }
         }
@@ -581,7 +718,7 @@ class MathEngine {
                     "   Node:" + currentNode.id + " " +
                     "   Pos: [x= " + SimApp.two_decimals_formatter.format(best_params[0]).replace(",", ".") +
                     ", y= " + SimApp.two_decimals_formatter.format(best_params[1]).replace(",", ".") + "]");
-                    // "   Score: " + likelihood_formatter(bestLikelihood));
+                    // "   Score: " + likelihood_formatter(MathEngine.bestLikelihood));
 
             // get values at optimum
             return(best_params);

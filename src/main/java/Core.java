@@ -222,11 +222,6 @@ public class Core {
         // Check if there is no remaining step from previous unfinished cycles
         if (SimApp.temp_OrderedRemoteNodeIDs.size()==0){
 
-            // When in GUI mode, we can align the swarm based on a principal spatial variation for better visualization
-//            if (!SimApp.headless_mode){
-//                MathEngine.align_Swarm();
-//            }
-
             // We start a new Cycle. At this point, sortNodesByBeliefsStrength() has already ordered the nodes.
             SimApp.temp_OrderedRemoteNodeIDs.addAll(SimApp.OrderedByBeliefsStrength_NodeIDs);
 
@@ -237,6 +232,7 @@ public class Core {
 
         // Check if the user wants to get results per step
         if (SimApp.results_per_step){
+
             SimApp.stepCounter = SimApp.stepCounter + 1;
 
             Node currentNode = SimApp.nodeID_to_nodeObject.get(SimApp.temp_OrderedRemoteNodeIDs.remove(0));
@@ -252,14 +248,13 @@ public class Core {
             }
 
             MapField.updateMapExtent();
+
             MathEngine.publishResultsInGUI(SimApp.cycleCounter, SimApp.stepCounter, currentNode);
 
-            // todo use this for debugging whenever needed
-            /*
-            if (resetAll_CurrentNodePos_to_TruePos){
-                reset_CurrentNodePos_to_TruePos();
-            }
-            */
+            // To use this for debugging whenever needed
+//            if (resetAll_CurrentNodePos_to_TruePos){
+//                reset_CurrentNodePos_to_TruePos();
+//            }
         }
         // Being here means that the user wants to get results per cycle
         else {
@@ -292,8 +287,7 @@ public class Core {
                     MathEngine.publishResultsInGUI(SimApp.cycleCounter, SimApp.stepCounter, currentNode);
                 }
 
-                // Check if the stop Button is not enabled.
-                // In such case, the user has manually stopped the optimization and so, break the iteration..
+                // Check whether the requested cycles have been reached.
                 if (SimApp.optimization_cycles < SimApp.cycleCounter){
                     System.out.println("Current finished cycle: " + SimApp.optimization_cycles);
                     break;
@@ -307,7 +301,7 @@ public class Core {
 
         // If we are running in headless mode and the cycles have finished,
         // we should stop nicely the current optimization process as we would do in GUI mode by pressing the Stop
-        if (SimApp.headless_mode && SimApp.optimization_cycles <= SimApp.cycleCounter){
+        if (SimApp.optimization_cycles <= SimApp.cycleCounter){
             // Stop the optimization right after the chosen amount of cycles
             SimApp.stopOptimization();
 
@@ -318,6 +312,13 @@ public class Core {
     }
 
     static void resumeSwarmPositioningInGUIMode() throws Exception {
+        // Check if the requested cycles have been reached. Since counting started from 0, we use equality to check.
+        if (SimApp.optimization_cycles == SimApp.cycleCounter){
+            System.out.println("Cycles finished");
+            SimApp.stop_optimization = true;
+            return;
+        }
+
         SimApp.optimization_running = true;
 
         SimApp.appendToTextArea("Position Estimations:");
@@ -325,9 +326,8 @@ public class Core {
         // Check if there is no remaining step from previous unfinished cycles
         if (SimApp.temp_OrderedRemoteNodeIDs.size()==0){
 
-            // We align the swarm based on the principal spatial variation for better visualization in GUI
+            // When in GUI mode, we can align the swarm based on a principal spatial variation for better visualization
             // MathEngine.align_Swarm();
-            // TODO we need to do that only for visualization purposes
 
             // We start a new Cycle. At this point, sortNodesByBeliefsStrength() has already ordered the nodes.
             SimApp.temp_OrderedRemoteNodeIDs.addAll(SimApp.OrderedByBeliefsStrength_NodeIDs);
@@ -350,21 +350,19 @@ public class Core {
             double[] new_current_position = MathEngine.findBestPositionForCurrentNode(
                     currentNode, SimApp.cycleCounter, SimApp.stepCounter);
 
-            // We use the same optimization function to publish the likelihood, before updating the nodes' positions
-            MathEngine.publishResultsInGUI(SimApp.cycleCounter, SimApp.stepCounter, currentNode);
-
             if (new_current_position != null){
                 currentNode.updateCurrentNodePos(new_current_position[0], new_current_position[1]);
             }
 
             MapField.updateMapExtent();
 
+            // We use the same optimization function to publish the likelihood, before updating the nodes' positions
+            MathEngine.publishResultsInGUI(SimApp.cycleCounter, SimApp.stepCounter, currentNode);
+
             // To use this for debugging whenever needed
-            /*
-            if (resetAll_CurrentNodePos_to_TruePos){
-                reset_CurrentNodePos_to_TruePos();
-            }
-            */
+//            if (resetAll_CurrentNodePos_to_TruePos){
+//                reset_CurrentNodePos_to_TruePos();
+//            }
         }
         // Being here means that the user wants to get results per cycle
         else {
@@ -387,25 +385,17 @@ public class Core {
                 double[] new_current_position = MathEngine.findBestPositionForCurrentNode(
                         SimApp.nodeID_to_nodeObject.get(currentNodeID), SimApp.cycleCounter, SimApp.stepCounter);
 
-                // Check whether we are currently at the last step
-                if (last_step){
-                    System.out.println("Updating the Canvas now");
-                    // We use the same optimization function to publish the likelihood, before updating the nodes' positions
-                    MathEngine.publishResultsInGUI(SimApp.cycleCounter, SimApp.stepCounter, currentNode);
-                }
-
                 if (new_current_position != null){
                     currentNode.updateCurrentNodePos(new_current_position[0], new_current_position[1]);
                 }
 
                 MapField.updateMapExtent();
 
-                // Check if the stop Button is not enabled.
-                // In such case, the user has manually stopped the optimization and so, break the iteration..
-//                if (SimApp.optimization_cycles < SimApp.cycleCounter){
-//                    System.out.println("Current finished cycle: " + SimApp.optimization_cycles);
-//                    break;
-//                }
+                // Check whether we are currently at the last step
+                if (last_step){
+                    // We use the same optimization function to publish the likelihood, before updating the nodes' positions
+                    MathEngine.publishResultsInGUI(SimApp.cycleCounter, SimApp.stepCounter, currentNode);
+                }
             }
         }
 

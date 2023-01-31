@@ -1,4 +1,5 @@
 import org.jzy3d.chart.Chart;
+import org.jzy3d.chart.ContourChart;
 
 import javax.imageio.ImageIO;
 import javax.swing.*;
@@ -29,6 +30,8 @@ import static org.jzy3d.plot3d.primitives.SampleGeom.surface;
 public class SimApp extends Frame {
 
     static Frame app;
+
+    static int chart_plot_size;
 
     static boolean headless_mode;
 
@@ -73,6 +76,7 @@ public class SimApp extends Frame {
 
     static double max_distance = 1000.;
     static boolean optimization_running;
+    static boolean stop_optimization;
     static boolean rendering_wolfram_data;
 
     static DecimalFormat two_decimals_formatter = new DecimalFormat("#.##");
@@ -86,7 +90,7 @@ public class SimApp extends Frame {
     static Component chart_plot_canvas;
     static Component labels_plot_canvas;
 
-    static Chart chart_plot;
+    static ContourChart chart_plot;
     static Chart labels_plot;
 
     static CustomTextArea outputTerminal;
@@ -414,40 +418,41 @@ public class SimApp extends Frame {
         SimApp.OrderedByLastCycleOrientation_NodeIDs = new ArrayList<>();
 
         SimApp.optimization_running = false;
+        SimApp.stop_optimization = false;
     }
 
     public SimApp() throws Exception {
         setLayout(null);
         setTitle("Swarm Positioning");
 
-        final int window_width = 1465;
+        final int window_width = 1600;
         final int window_height = 1000;
         final int bar_height = 32;
-        final int settings_panel_height = 360;
+        final int settings_panel_height = 430;
 
         final int tiny_gap = 5;
-        final int normal_gap = 100;
-        final int big_gap = 250;
+        final int medium_gap = 20;
 
-        final int small_text_height = 20;
-        final int medium_text_height = 34;
-        final int value_text_width = 50;
+        final int small_text_height = 25;
+        final int medium_text_height = 40;
 
-        final int c1_x = window_width-530;
-        final int c1_content_width = normal_gap;
+        chart_plot_size = window_height-bar_height-medium_text_height-1;
+
+        final int c1_x = chart_plot_size + 2;
+        final int c1_content_width = 120;
         final int c2_x = c1_x + c1_content_width + tiny_gap;
-        final int c2_content_width = normal_gap;
+        final int c2_content_width = 120;
         final int c3_x = c2_x + c2_content_width + tiny_gap;
-        final int c3_content_width = big_gap;
+        final int c4_content_width = 70;
+        final int c3_content_width = window_width - c3_x - c4_content_width - medium_gap;
         final int c4_x = c3_x + c3_content_width;
-        final int c4_content_width = value_text_width;
 
         final int r2_y = bar_height + window_height - settings_panel_height + small_text_height + tiny_gap;
-
+        final int r2_height = 80;
 
         SimApp.chart_plot_canvas = MathEngine.getLikelihoodFunction(null);
-        //SimApp.plot_area.setBounds(0, bar_height, c1_x-2,window_height-bar_height-medium_text_height-1);
-        SimApp.chart_plot_canvas.setBounds(0, bar_height, window_height-bar_height-medium_text_height-1,window_height-bar_height-medium_text_height-1);
+        //SimApp.plot_area.setBounds(0, bar_height, c1_x-2, chart_plot_size);
+        SimApp.chart_plot_canvas.setBounds(0, bar_height, chart_plot_size, chart_plot_size);
         add(SimApp.chart_plot_canvas, BorderLayout.CENTER);
 
 
@@ -463,10 +468,11 @@ public class SimApp extends Frame {
         add((Button) SimApp.clearTerminalBtn.getButton());
 
 
+        int openDB_Btn_width = 100;
 
         SimApp.openDB_Btn = new CustomButton("DB load");
         SimApp.openDB_Btn.addActionListener(new openDBBtnAdapter());
-        SimApp.openDB_Btn.setBounds(0, window_height-medium_text_height, normal_gap,small_text_height+tiny_gap);
+        SimApp.openDB_Btn.setBounds(0, window_height-medium_text_height, openDB_Btn_width,small_text_height+tiny_gap);
         add((Button) SimApp.openDB_Btn.getButton());
 
         SimApp.loaded_db_name_LabelArea = new CustomTextArea("",1,1, TextArea.SCROLLBARS_NONE);
@@ -475,7 +481,7 @@ public class SimApp extends Frame {
         SimApp.loaded_db_name_LabelArea.setEnabled(true);
         SimApp.loaded_db_name_LabelArea.setFocusable(false);
         SimApp.loaded_db_name_LabelArea.setEditable(false);
-        SimApp.loaded_db_name_LabelArea.setBounds(normal_gap, window_height-medium_text_height,window_width - normal_gap,small_text_height+tiny_gap);
+        SimApp.loaded_db_name_LabelArea.setBounds(openDB_Btn_width, window_height-medium_text_height,window_width - openDB_Btn_width,small_text_height+tiny_gap);
         add((TextArea) SimApp.loaded_db_name_LabelArea.getTextArea());
 
 
@@ -483,11 +489,11 @@ public class SimApp extends Frame {
         // This Section is for the "Results per:"
         CheckboxGroup plot_export_group = new CheckboxGroup();
         SimApp.results_per_step_btn = new CustomCheckbox("Step", false, plot_export_group);
-        SimApp.results_per_step_btn.setBounds(c1_x + tiny_gap, r2_y + small_text_height, 50, small_text_height);
+        SimApp.results_per_step_btn.setBounds(c1_x + tiny_gap, r2_y + small_text_height, c1_content_width-medium_gap, small_text_height);
         add((Checkbox) SimApp.results_per_step_btn.getCheckbox());
 
         SimApp.results_per_cycle_btn = new CustomCheckbox("Cycle", true, plot_export_group);
-        SimApp.results_per_cycle_btn.setBounds(c1_x + tiny_gap, r2_y + 2 * small_text_height, 50, small_text_height);
+        SimApp.results_per_cycle_btn.setBounds(c1_x + tiny_gap, r2_y + 2 * small_text_height, c1_content_width-medium_gap, small_text_height);
         add((Checkbox) SimApp.results_per_cycle_btn.getCheckbox());
 
         SimApp.resultsPer_LabelArea = new CustomTextArea("Results per:",2,1, TextArea.SCROLLBARS_NONE);
@@ -496,7 +502,7 @@ public class SimApp extends Frame {
         SimApp.resultsPer_LabelArea.setEnabled(true);
         SimApp.resultsPer_LabelArea.setFocusable(false);
         SimApp.resultsPer_LabelArea.setEditable(false);
-        SimApp.resultsPer_LabelArea.setBounds(c1_x, r2_y, c1_content_width,66);
+        SimApp.resultsPer_LabelArea.setBounds(c1_x, r2_y, c1_content_width, r2_height);
         add((TextArea) SimApp.resultsPer_LabelArea.getTextArea());
 
 
@@ -519,14 +525,14 @@ public class SimApp extends Frame {
         SimApp.rangingModel_LabelArea.setEnabled(true);
         SimApp.rangingModel_LabelArea.setFocusable(false);
         SimApp.rangingModel_LabelArea.setEditable(false);
-        SimApp.rangingModel_LabelArea.setBounds(c2_x, r2_y, c1_content_width, 66);
+        SimApp.rangingModel_LabelArea.setBounds(c2_x, r2_y, c1_content_width, r2_height);
         add((TextArea) SimApp.rangingModel_LabelArea.getTextArea());
 
 
 
         // This Section is for the Plot Export Properties
-        final int export_ProductLikelihood_Label_y = r2_y + 66 + tiny_gap;
-        SimApp.plotResolution_LabelArea = new CustomTextArea("Detail [10,500]:",1,1, TextArea.SCROLLBARS_NONE);
+        final int export_ProductLikelihood_Label_y = r2_y + r2_height + tiny_gap;
+        SimApp.plotResolution_LabelArea = new CustomTextArea("Extent [0,+]:",1,1, TextArea.SCROLLBARS_NONE);
         SimApp.plotResolution_LabelArea.setBounds(c2_x, export_ProductLikelihood_Label_y, c2_content_width, small_text_height);
         SimApp.plotResolution_LabelArea.setBackground(Color.lightGray);
         SimApp.plotResolution_LabelArea.setEnabled(true);
@@ -534,15 +540,16 @@ public class SimApp extends Frame {
         add((TextArea) SimApp.plotResolution_LabelArea.getTextArea());
 
         final int plotResolution_inputTextArea_y = export_ProductLikelihood_Label_y + small_text_height;
-        SimApp.plotResolution_inputTextField = new CustomTextField("100");
+        SimApp.plotResolution_inputTextField = new CustomTextField("300");
         SimApp.plotResolution_inputTextField.setBounds(c2_x, plotResolution_inputTextArea_y, c2_content_width, small_text_height);
-        SimApp.plotResolution_inputTextField.addTextListener(new plotResolutionInputTextAreaEnsurer());
+        SimApp.plotResolution_inputTextField.addTextListener(
+                new integerGreaterThanBoundEnsurer(SimApp.plotResolution_inputTextField, 0));
         add((TextField) SimApp.plotResolution_inputTextField.getTextField());
 
         final int export_ProductLikelihood_WolframPlot_function_Label_height = (plotResolution_inputTextArea_y + small_text_height) - export_ProductLikelihood_Label_y;
         final int export_ProductLikelihood_WolframPlot_function_btn_y = plotResolution_inputTextArea_y - 2;
         SimApp.export_ProductLikelihood_WolframPlot_function_btn = new CustomCheckbox("Export function", true, null);
-        SimApp.export_ProductLikelihood_WolframPlot_function_btn.setBounds(c1_x + tiny_gap, export_ProductLikelihood_WolframPlot_function_btn_y, 95, small_text_height);
+        SimApp.export_ProductLikelihood_WolframPlot_function_btn.setBounds(c1_x + tiny_gap, export_ProductLikelihood_WolframPlot_function_btn_y, c1_content_width-tiny_gap, small_text_height);
         add((Checkbox) SimApp.export_ProductLikelihood_WolframPlot_function_btn.getCheckbox());
 
         SimApp.productLikelihood_WolframPlot_LabelArea = new CustomTextArea("Likelihood Plot",2,1, TextArea.SCROLLBARS_NONE);
@@ -585,12 +592,12 @@ public class SimApp extends Frame {
         SimApp.min_effective_measurement_inputTextField = new CustomTextField("80");
         SimApp.min_effective_measurement_inputTextField.setBounds(c4_x, min_effective_measurement_inputTextArea_y, c4_content_width, small_text_height);
         SimApp.min_effective_measurement_inputTextField.addTextListener(
-                new integerGreaterThanZeroEnsurer(SimApp.min_effective_measurement_inputTextField));
+                new integerGreaterThanBoundEnsurer(SimApp.min_effective_measurement_inputTextField, 1));
         add((TextField) SimApp.min_effective_measurement_inputTextField.getTextField());
 
 
         final int kNearestNeighbours_for_BeliefsStrength_LabelArea_y = min_effective_rss_LabelArea_y + medium_text_height;
-        SimApp.kNearestNeighbours_for_BeliefsStrength_LabelArea = new CustomTextArea("k Nearest Nodes for Effectiveness Check [1,+]:",1,1, TextArea.SCROLLBARS_NONE);
+        SimApp.kNearestNeighbours_for_BeliefsStrength_LabelArea = new CustomTextArea("k Nearest Nodes for Effectiveness Check [2,+]:",1,1, TextArea.SCROLLBARS_NONE);
         SimApp.kNearestNeighbours_for_BeliefsStrength_LabelArea.setBounds(c3_x, kNearestNeighbours_for_BeliefsStrength_LabelArea_y, c3_content_width, small_text_height);
         SimApp.kNearestNeighbours_for_BeliefsStrength_LabelArea.setBackground(Color.lightGray);
         SimApp.kNearestNeighbours_for_BeliefsStrength_LabelArea.setEnabled(true);
@@ -600,12 +607,12 @@ public class SimApp extends Frame {
         SimApp.kNearestNeighbours_for_BeliefsStrength_inputTextField = new CustomTextField("6");
         SimApp.kNearestNeighbours_for_BeliefsStrength_inputTextField.setBounds(c4_x, kNearestNeighbours_for_BeliefsStrength_LabelArea_y, c4_content_width, small_text_height);
         SimApp.kNearestNeighbours_for_BeliefsStrength_inputTextField.addTextListener(
-                new integerGreaterThanZeroEnsurer(SimApp.kNearestNeighbours_for_BeliefsStrength_inputTextField));
+                new integerGreaterThanBoundEnsurer(SimApp.kNearestNeighbours_for_BeliefsStrength_inputTextField, 2));
         add((TextField) SimApp.kNearestNeighbours_for_BeliefsStrength_inputTextField.getTextField());
 
 
         final int initial_Map_Extend_LabelArea_y = kNearestNeighbours_for_BeliefsStrength_LabelArea_y + small_text_height;
-        SimApp.initial_Map_Extend_LabelArea = new CustomTextArea("Extent of Random Positions Initialization [1,+]:",1,1, TextArea.SCROLLBARS_NONE);
+        SimApp.initial_Map_Extend_LabelArea = new CustomTextArea("Extent of Random Positions Initialization [0,+]:",1,1, TextArea.SCROLLBARS_NONE);
         SimApp.initial_Map_Extend_LabelArea.setBounds(c3_x, initial_Map_Extend_LabelArea_y, c3_content_width, small_text_height);
         SimApp.initial_Map_Extend_LabelArea.setBackground(Color.lightGray);
         SimApp.initial_Map_Extend_LabelArea.setEnabled(true);
@@ -615,12 +622,12 @@ public class SimApp extends Frame {
         SimApp.initial_Map_Extend_inputTextField = new CustomTextField("1000");
         SimApp.initial_Map_Extend_inputTextField.setBounds(c4_x, initial_Map_Extend_LabelArea_y, c4_content_width, small_text_height);
         SimApp.initial_Map_Extend_inputTextField.addTextListener(
-                new integerGreaterThanZeroEnsurer(SimApp.initial_Map_Extend_inputTextField));
+                new integerGreaterThanBoundEnsurer(SimApp.initial_Map_Extend_inputTextField, 0));
         add((TextField) SimApp.initial_Map_Extend_inputTextField.getTextField());
 
 
         final int seed_LabelArea_y = initial_Map_Extend_LabelArea_y + small_text_height;
-        SimApp.seed_LabelArea = new CustomTextArea("Seed for Random Positions Initialization [1,+]:",1,1, TextArea.SCROLLBARS_NONE);
+        SimApp.seed_LabelArea = new CustomTextArea("Seed for Random Positions Initialization [0,+]:",1,1, TextArea.SCROLLBARS_NONE);
         SimApp.seed_LabelArea.setBounds(c3_x, seed_LabelArea_y, c3_content_width, small_text_height);
         SimApp.seed_LabelArea.setBackground(Color.lightGray);
         SimApp.seed_LabelArea.setEnabled(true);
@@ -630,7 +637,7 @@ public class SimApp extends Frame {
         SimApp.seed_inputTextField = new CustomTextField("0");
         SimApp.seed_inputTextField.setBounds(c4_x, seed_LabelArea_y, c4_content_width, small_text_height);
         SimApp.seed_inputTextField.addTextListener(
-                new integerGreaterThanZeroEnsurer(SimApp.seed_inputTextField));
+                new integerGreaterThanBoundEnsurer(SimApp.seed_inputTextField, 0));
         add((TextField) SimApp.seed_inputTextField.getTextField());
 
 
@@ -645,7 +652,7 @@ public class SimApp extends Frame {
         SimApp.eval_iteration_inputTextField = new CustomTextField("0");
         SimApp.eval_iteration_inputTextField.setBounds(c4_x, eval_iteration_LabelArea_y, c4_content_width, small_text_height);
         SimApp.eval_iteration_inputTextField.addTextListener(
-                new integerGreaterThanZeroEnsurer(SimApp.eval_iteration_inputTextField));
+                new integerGreaterThanBoundEnsurer(SimApp.eval_iteration_inputTextField, 0));
         add((TextField) SimApp.eval_iteration_inputTextField.getTextField());
 
 
@@ -660,7 +667,7 @@ public class SimApp extends Frame {
         SimApp.threads_inputTextField = new CustomTextField("1");
         SimApp.threads_inputTextField.setBounds(c4_x, threads_LabelArea_y, c4_content_width, small_text_height);
         SimApp.threads_inputTextField.addTextListener(
-                new integerGreaterThanZeroEnsurer(SimApp.threads_inputTextField));
+                new integerGreaterThanBoundEnsurer(SimApp.threads_inputTextField, 1));
         add((TextField) SimApp.threads_inputTextField.getTextField());
 
 
@@ -675,7 +682,7 @@ public class SimApp extends Frame {
         SimApp.optimization_iterations_per_thread_inputTextField = new CustomTextField("100");
         SimApp.optimization_iterations_per_thread_inputTextField.setBounds(c4_x, optimization_iterations_per_thread_LabelArea_y, c4_content_width, small_text_height);
         SimApp.optimization_iterations_per_thread_inputTextField.addTextListener(
-                new integerGreaterThanZeroEnsurer(SimApp.optimization_iterations_per_thread_inputTextField));
+                new integerGreaterThanBoundEnsurer(SimApp.optimization_iterations_per_thread_inputTextField, 1));
         add((TextField) SimApp.optimization_iterations_per_thread_inputTextField.getTextField());
 
 
@@ -690,7 +697,7 @@ public class SimApp extends Frame {
         SimApp.max_optimization_time_per_thread_inputTextField = new CustomTextField("6000");
         SimApp.max_optimization_time_per_thread_inputTextField.setBounds(c4_x, max_optimization_time_per_thread_LabelArea_y, c4_content_width, small_text_height);
         SimApp.max_optimization_time_per_thread_inputTextField.addTextListener(
-                new integerGreaterThanZeroEnsurer(SimApp.max_optimization_time_per_thread_inputTextField));
+                new integerGreaterThanBoundEnsurer(SimApp.max_optimization_time_per_thread_inputTextField, 6000));
         add((TextField) SimApp.max_optimization_time_per_thread_inputTextField.getTextField());
 
 
@@ -705,7 +712,7 @@ public class SimApp extends Frame {
         SimApp.ftol_inputTextField = new CustomTextField("2");
         SimApp.ftol_inputTextField.setBounds(c4_x, ftol_LabelArea_y, c4_content_width, small_text_height);
         SimApp.ftol_inputTextField.addTextListener(
-                new integerGreaterThanZeroEnsurer(SimApp.ftol_inputTextField));
+                new integerGreaterThanBoundEnsurer(SimApp.ftol_inputTextField, 1));
         add((TextField) SimApp.ftol_inputTextField.getTextField());
 
 
@@ -720,7 +727,7 @@ public class SimApp extends Frame {
         SimApp.initial_step_size_inputTextField = new CustomTextField("10");
         SimApp.initial_step_size_inputTextField.setBounds(c4_x, initial_step_size_LabelArea_y, c4_content_width, small_text_height);
         SimApp.initial_step_size_inputTextField.addTextListener(
-                new integerGreaterThanZeroEnsurer(SimApp.initial_step_size_inputTextField));
+                new integerGreaterThanBoundEnsurer(SimApp.initial_step_size_inputTextField, 1));
         add((TextField) SimApp.initial_step_size_inputTextField.getTextField());
 
 
@@ -735,7 +742,7 @@ public class SimApp extends Frame {
         SimApp.optimization_cycles_inputTextField = new CustomTextField("50");
         SimApp.optimization_cycles_inputTextField.setBounds(c4_x, optimization_cycles_LabelArea_y, c4_content_width, small_text_height);
         SimApp.optimization_cycles_inputTextField.addTextListener(
-                new integerGreaterThanZeroEnsurer(SimApp.optimization_cycles_inputTextField));
+                new integerGreaterThanBoundEnsurer(SimApp.optimization_cycles_inputTextField, 1));
         add((TextField) SimApp.optimization_cycles_inputTextField.getTextField());
 
 
@@ -768,7 +775,7 @@ public class SimApp extends Frame {
 //        Sim_App.optimization_order_Label.setEnabled(true);
 //        Sim_App.optimization_order_Label.setFocusable(false);
 //        Sim_App.optimization_order_Label.setEditable(false);
-//        Sim_App.optimization_order_Label.setBounds(c2_x, optimization_order_Label_y, 90, 66);
+//        Sim_App.optimization_order_Label.setBounds(c2_x, optimization_order_Label_y, 90, r2_height);
 //        add((TextArea) Sim_App.optimization_order_Label.getTextArea());
 
 
@@ -984,14 +991,17 @@ public class SimApp extends Frame {
     }
 
     // This listener ensures an Arithmetic text of less than 500 value
-    static private class integerGreaterThanZeroEnsurer implements TextListener {
+    static private class integerGreaterThanBoundEnsurer implements TextListener {
 
         CustomTextField attachedTextField;
-        String previous_valid_value = "1";
+        int min_value;
+        String previous_valid_value;
 
 
-        integerGreaterThanZeroEnsurer(CustomTextField attachedTextField){
+        integerGreaterThanBoundEnsurer(CustomTextField attachedTextField, int min_value){
             this.attachedTextField = attachedTextField;
+            this.min_value = min_value;
+            this.previous_valid_value = String.valueOf(min_value);
         }
 
         public void textValueChanged(TextEvent evt) {
@@ -999,7 +1009,7 @@ public class SimApp extends Frame {
             String current_text = attachedTextField.getText();
 
             if (current_text.length() == 0){
-                attachedTextField.setText("1");
+                attachedTextField.setText(this.previous_valid_value);
             }
 
             // We do this check and corresponding update to be able to escape the infinite loop
@@ -1011,7 +1021,7 @@ public class SimApp extends Frame {
                 try {
                     int plot_res = Integer.parseInt(new_text);
 
-                    if (plot_res>0){
+                    if (plot_res >= min_value){
                         previous_valid_value = new_text;
                         attachedTextField.setText(new_text);
                     }
@@ -1173,7 +1183,9 @@ public class SimApp extends Frame {
 
                             try {
                                 Core.init();
-                                Core.resumeSwarmPositioning();
+                                while (!SimApp.stop_optimization){
+                                    Core.resumeSwarmPositioningInGUIMode();
+                                }
 
                             } catch (Exception ex) {
                                 throw new RuntimeException(ex);
@@ -1211,7 +1223,7 @@ public class SimApp extends Frame {
             }
             else {
                 System.out.println("Stopping Optimization");
-                // TODO Set a flag for stopping the optimization
+                SimApp.stop_optimization = true;
                 SimApp.go_Toggle_btn.setText("GO");
             }
         }
@@ -1248,13 +1260,9 @@ public class SimApp extends Frame {
             // Set user's optimization parameters
             // Booleans
             SimApp.results_per_step = SimApp.results_per_step_btn.getState();
-            System.out.println(SimApp.results_per_step);
             SimApp.results_per_cycle = SimApp.results_per_cycle_btn.getState();
-            System.out.println(SimApp.results_per_cycle);
             SimApp.ble_model = SimApp.ble_model_btn.getState();
-            System.out.println(SimApp.ble_model);
             SimApp.uwb_model = SimApp.uwb_model_btn.getState();
-            System.out.println(SimApp.uwb_model);
             SimApp.export_ProductLikelihood_WolframPlot = SimApp.export_ProductLikelihood_WolframPlot_function_btn.getState();
             SimApp.plotResolution = Integer.parseInt(SimApp.plotResolution_inputTextField.getText());
 
@@ -1336,7 +1344,8 @@ public class SimApp extends Frame {
             setPropertiesAsAvailable(false);
 
             try {
-                Core.resumeSwarmPositioningInGUIMode();
+                System.out.println("Resuming Headless Positioning");
+                Core.resumeSwarmPositioning();
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }
@@ -1443,7 +1452,7 @@ public class SimApp extends Frame {
 
     static void writeString2File(String filename, String data){
 
-        System.out.println("Data for exporting: " + data);
+//        System.out.println("Data for exporting: " + data);
 
         try (PrintWriter out = new PrintWriter(filename)) {
             out.println(data.substring(0, data.lastIndexOf("\n")));
