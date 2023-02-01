@@ -38,10 +38,10 @@ public class Node {
 
     public void setInitialRandomPositions(){
         // Set the extent for the initial random positioning
-        final double initial_global_minPlotX = -SimApp.max_distance;
-        final double initial_global_maxPlotX = SimApp.max_distance;
-        final double initial_global_minPlotY = -SimApp.max_distance;
-        final double initial_global_maxPlotY = SimApp.max_distance;
+        final double initial_global_minPlotX = -SimApp.initial_Map_Extend;
+        final double initial_global_maxPlotX = SimApp.initial_Map_Extend;
+        final double initial_global_minPlotY = -SimApp.initial_Map_Extend;
+        final double initial_global_maxPlotY = SimApp.initial_Map_Extend;
 
         // Use this to set position at 0
 //        updateCurrentNodePos(0, 0);

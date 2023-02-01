@@ -213,10 +213,10 @@ class DistanceLikelihood implements MaximisationFunction{
     void updateMeasurementAndExtentReach(double measurement){
         this.measurement = measurement;
 
-        this.minPlotX = attachedNode.current_relative_x - SimApp.max_distance;
-        this.maxPlotX = attachedNode.current_relative_x + SimApp.max_distance;
-        this.minPlotY = attachedNode.current_relative_y - SimApp.max_distance;
-        this.maxPlotY = attachedNode.current_relative_y + SimApp.max_distance;
+        this.minPlotX = attachedNode.current_relative_x - SimApp.initial_Map_Extend;
+        this.maxPlotX = attachedNode.current_relative_x + SimApp.initial_Map_Extend;
+        this.minPlotY = attachedNode.current_relative_y - SimApp.initial_Map_Extend;
+        this.maxPlotY = attachedNode.current_relative_y + SimApp.initial_Map_Extend;
     }
 }
 

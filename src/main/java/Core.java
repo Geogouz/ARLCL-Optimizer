@@ -33,7 +33,6 @@ public class Core {
     static void init() throws Exception {
         SimApp.appendToTextArea("Initializing SwarmEngine");
 
-        SimApp.appendToTextArea("Preparing the Optimization Workers (number: " + SimApp.threads + ")");
         MathEngine.generateTheOptimizerThreads();
 
         parseDB();

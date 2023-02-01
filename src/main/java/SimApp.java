@@ -25,7 +25,6 @@ import java.util.zip.ZipOutputStream;
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
-import static org.jzy3d.plot3d.primitives.SampleGeom.surface;
 
 public class SimApp extends Frame {
 
@@ -52,15 +51,16 @@ public class SimApp extends Frame {
     // Optimization's Parameters
     static int min_effective_measurement;
     static int kNearestNeighbours_for_BeliefsStrength;
-    static int initial_Map_Extend; // TODO merge
+    static int initial_Map_Extend;
     static int threads;
     static int optimization_iterations_per_thread;
     static int max_optimization_time_per_thread;
     static double ftol;
-    static int initial_step_size;
+    static long seed;
+    static int step_size;
     static int optimization_cycles;
-    static Integer ending_eval_iteration;
-    static int current_eval_iteration;
+    static int ending_eval_iteration;
+    static int evaluated_iteration;
     static String clean_evaluated_scenario_name;
     static String input_file_path;
     static String input_file_extension;
@@ -73,10 +73,7 @@ public class SimApp extends Frame {
     static List<Integer> OrderedByLastCycleOrientation_NodeIDs;
 
     static ArrayList<Integer> effective_remoteNodes;
-
-    static double max_distance = 1000.;
     static DecimalFormat two_decimals_formatter = new DecimalFormat("#.##");
-
     static WnAdapter window_adapter;
     static String previous_valid_project_name = "";
     static String previous_valid_plot_resolution = "";
@@ -101,7 +98,7 @@ public class SimApp extends Frame {
     static CustomTextArea optimization_iterations_per_thread_LabelArea;
     static CustomTextArea initial_Map_Extend_LabelArea;
     static CustomTextArea seed_LabelArea;
-    static CustomTextArea eval_iteration_LabelArea;
+    static CustomTextArea evaluated_iteration_LabelArea;
     static CustomTextArea threads_LabelArea;
     static CustomTextField projectName_inputTextField;
     static CustomTextField kNearestNeighbours_for_BeliefsStrength_inputTextField;
@@ -114,7 +111,7 @@ public class SimApp extends Frame {
     static CustomTextField optimization_iterations_per_thread_inputTextField;
     static CustomTextField initial_Map_Extend_inputTextField;
     static CustomTextField seed_inputTextField;
-    static CustomTextField eval_iteration_inputTextField;
+    static CustomTextField evaluated_iteration_inputTextField;
     static CustomTextField threads_inputTextField;
     static CustomButton openDB_Btn;
     static CustomButton clearTerminalBtn;
@@ -161,7 +158,8 @@ public class SimApp extends Frame {
                 }
 
                 // Set the seed
-                SimApp.random.setSeed(Long.parseLong(str_arguments.get("seed")));
+                SimApp.seed = Long.parseLong(str_arguments.get("seed"));
+                SimApp.random.setSeed(SimApp.seed);
 
                 SimApp.ftol = Double.parseDouble(str_arguments.get("ftol"));
                 SimApp.outpath_results_folder_path = str_arguments.get("out_path");
@@ -187,7 +185,7 @@ public class SimApp extends Frame {
             }
 
             // Initiate the iteration index
-            SimApp.current_eval_iteration = 0;
+            SimApp.evaluated_iteration = 0;
 
             // Parse the evaluation scenarios from the combos file
             eval_scenario = parseEvalScenarios(evaluation_id, eval_scenarios_path);
@@ -225,7 +223,7 @@ public class SimApp extends Frame {
 
     private static void executeHeadlessOptimizationJobs() {
         // Execute the following simulation setup as many times as the user has selected
-        while (SimApp.current_eval_iteration < SimApp.ending_eval_iteration +1){
+        while (SimApp.evaluated_iteration < SimApp.ending_eval_iteration + 1){
             try {
                 resetDataStructures();
                 headlessInit();
@@ -247,7 +245,7 @@ public class SimApp extends Frame {
             }
 
             // Increment one step and continue
-            SimApp.current_eval_iteration++;
+            SimApp.evaluated_iteration++;
         }
 
         System.out.println("Optimization finished");
@@ -583,18 +581,18 @@ public class SimApp extends Frame {
 
 
         final int eval_iteration_LabelArea_y = seed_LabelArea_y + small_text_height;
-        SimApp.eval_iteration_LabelArea = new CustomTextArea("Evaluation ID in DB to execute [1,+]:",1,1, TextArea.SCROLLBARS_NONE);
-        SimApp.eval_iteration_LabelArea.setBounds(c3_x, eval_iteration_LabelArea_y, c3_content_width, small_text_height);
-        SimApp.eval_iteration_LabelArea.setBackground(Color.lightGray);
-        SimApp.eval_iteration_LabelArea.setEnabled(true);
-        SimApp.eval_iteration_LabelArea.setFocusable(false);
-        add((TextArea) SimApp.eval_iteration_LabelArea.getTextArea());
+        SimApp.evaluated_iteration_LabelArea = new CustomTextArea("Iteration in scenario to evaluate [1,+]:",1,1, TextArea.SCROLLBARS_NONE);
+        SimApp.evaluated_iteration_LabelArea.setBounds(c3_x, eval_iteration_LabelArea_y, c3_content_width, small_text_height);
+        SimApp.evaluated_iteration_LabelArea.setBackground(Color.lightGray);
+        SimApp.evaluated_iteration_LabelArea.setEnabled(true);
+        SimApp.evaluated_iteration_LabelArea.setFocusable(false);
+        add((TextArea) SimApp.evaluated_iteration_LabelArea.getTextArea());
 
-        SimApp.eval_iteration_inputTextField = new CustomTextField("0");
-        SimApp.eval_iteration_inputTextField.setBounds(c4_x, eval_iteration_LabelArea_y, c4_content_width, small_text_height);
-        SimApp.eval_iteration_inputTextField.addTextListener(
-                new integerGreaterThanBoundEnsurer(SimApp.eval_iteration_inputTextField, 0));
-        add((TextField) SimApp.eval_iteration_inputTextField.getTextField());
+        SimApp.evaluated_iteration_inputTextField = new CustomTextField("0");
+        SimApp.evaluated_iteration_inputTextField.setBounds(c4_x, eval_iteration_LabelArea_y, c4_content_width, small_text_height);
+        SimApp.evaluated_iteration_inputTextField.addTextListener(
+                new integerGreaterThanBoundEnsurer(SimApp.evaluated_iteration_inputTextField, 0));
+        add((TextField) SimApp.evaluated_iteration_inputTextField.getTextField());
 
 
         final int threads_LabelArea_y = eval_iteration_LabelArea_y + small_text_height;
@@ -801,7 +799,7 @@ public class SimApp extends Frame {
         SimApp.kNearestNeighbours_for_BeliefsStrength_inputTextField.setEnabled(state);
         SimApp.initial_Map_Extend_inputTextField.setEnabled(state);
         SimApp.seed_inputTextField.setEnabled(state);
-        SimApp.eval_iteration_inputTextField.setEnabled(state);
+        SimApp.evaluated_iteration_inputTextField.setEnabled(state);
         SimApp.threads_inputTextField.setEnabled(state);
         SimApp.optimization_iterations_per_thread_inputTextField.setEnabled(state);
         SimApp.max_optimization_time_per_thread_inputTextField.setEnabled(state);
@@ -817,7 +815,7 @@ public class SimApp extends Frame {
         SimApp.projectName_inputTextField = new CustomTextField(SimApp.clean_evaluated_scenario_name);
 
         // On the very first iteration, ensure that folder structure is as supposed to be
-        if (SimApp.current_eval_iteration == 0){
+        if (SimApp.evaluated_iteration == 0){
             // First ensure that the given output path folder path to store the estimations is valid
             SimApp.ensureFolder(SimApp.outpath_results_folder_path);
 
@@ -826,7 +824,7 @@ public class SimApp extends Frame {
         }
 
         // Construct the destination path for the results of current iteration
-        SimApp.output_iteration_results_folder_path = SimApp.outpath_results_folder_path + SimApp.clean_evaluated_scenario_name + "/" + SimApp.current_eval_iteration + "/";
+        SimApp.output_iteration_results_folder_path = SimApp.outpath_results_folder_path + SimApp.clean_evaluated_scenario_name + "/" + SimApp.evaluated_iteration + "/";
 
         // Check whether current iteration has already been done before
         boolean iteration_results_already_available = SimApp.handlePreviousIterationResults(false);
@@ -849,7 +847,7 @@ public class SimApp extends Frame {
         SimApp.output_iteration_results_folder_path = Paths.get(
                 SimApp.outpath_results_folder_path,
                 SimApp.clean_evaluated_scenario_name,
-                String.valueOf(SimApp.current_eval_iteration)
+                String.valueOf(SimApp.evaluated_iteration)
         ).toString();
 
         System.out.println("\nChecking for previous results at: " + SimApp.output_iteration_results_folder_path);
@@ -930,7 +928,6 @@ public class SimApp extends Frame {
             SimApp.go_Toggle_btn.setEnabled(false);
 
             String results_per_selection;
-            String optimization_order_selection;
 
             // Get the state of the results_per CustomCheckbox
             if (SimApp.headless_mode || !SimApp.results_per_step_btn.getState()){
@@ -938,14 +935,6 @@ public class SimApp extends Frame {
             }
             else{
                 results_per_selection = "Step";
-            }
-
-            // Get the state of the optimization_order CustomCheckbox
-            if (SimApp.headless_mode){
-                optimization_order_selection = "Beliefs-Strength";
-            }
-            else{
-                optimization_order_selection = "Last Cycle's Principal Component Score";
             }
 
             // If we are performing an optimization based on Density, we need to mention the utilised parameter
@@ -962,12 +951,18 @@ public class SimApp extends Frame {
 
             String summary_msg ="\n=========== Optimization Initiated ===========" +
                     "\nExport folder: " + SimApp.output_iteration_results_folder_path +
-                    "\nMax step-optimization runtime per thread: " + SimApp.max_optimization_time_per_thread_inputTextField.getText() + "ms" +
+                    "\nScenario: " + SimApp.clean_evaluated_scenario_name +
+                    "\nEvaluated iteration in scenario: " + SimApp.evaluated_iteration +
                     "\nMin effective measurement value: " + SimApp.min_effective_measurement_inputTextField.getText() + "units" +
-                    "\nftol: " + ftol +
-                    "\nIterations: " + optimization_iterations_per_thread +
+                    "\nExtent of positions initialization: " +  SimApp.initial_Map_Extend +
+                    "\nRandom seed: " +  SimApp.seed +
+                    "\nThread workers: " +  SimApp.threads +
+                    "\nOptimization iterations per thread: " + SimApp.optimization_iterations_per_thread +
+                    "\nMax step optimization runtime (per thread): " + SimApp.max_optimization_time_per_thread +
+                    "\nOptimization's ftol: " + SimApp.ftol +
+                    "\nOptimization's step size: " + SimApp.step_size +
+                    "\nStop Cycle: " + SimApp.optimization_cycles +
                     "\nResults per: " + results_per_selection +
-                    "\nOptimization order: " + optimization_order_selection +
                     kNN_for_beliefs_strength_check +
                     "Likelihoods export: [" + likelihoods_export;
 
@@ -1014,10 +1009,17 @@ public class SimApp extends Frame {
         }
         String summary_msg ="\n=========== Optimization Initiated ===========" +
                 "\nExport folder: " + SimApp.output_iteration_results_folder_path +
-                "\nMax step-optimization runtime per thread: " + SimApp.max_optimization_time_per_thread_inputTextField.getText() + "ms" +
+                "\nScenario: " + SimApp.clean_evaluated_scenario_name +
+                "\nEvaluated iteration in scenario: " + SimApp.evaluated_iteration +
                 "\nMin effective measurement value: " + SimApp.min_effective_measurement_inputTextField.getText() + "units" +
-                "\nftol: " + ftol +
-                "\nIterations: " + optimization_iterations_per_thread +
+                "\nExtent of positions initialization: " +  SimApp.initial_Map_Extend +
+                "\nRandom seed: " +  SimApp.seed +
+                "\nThread workers: " +  SimApp.threads +
+                "\nOptimization iterations per thread: " + SimApp.optimization_iterations_per_thread +
+                "\nMax step optimization runtime (per thread): " + SimApp.max_optimization_time_per_thread +
+                "\nOptimization's ftol: " + SimApp.ftol +
+                "\nOptimization's step size: " + SimApp.step_size +
+                "\nStop Cycle: " + SimApp.optimization_cycles +
                 "\nResults per: " + results_per_selection +
                 kNN_for_beliefs_strength_check +
                 "Likelihoods export: [" + likelihoods_export;
@@ -1039,18 +1041,18 @@ public class SimApp extends Frame {
         SimApp.min_effective_measurement = Integer.parseInt(SimApp.min_effective_measurement_inputTextField.getText());
         SimApp.kNearestNeighbours_for_BeliefsStrength = Integer.parseInt(SimApp.kNearestNeighbours_for_BeliefsStrength_inputTextField.getText());
         SimApp.initial_Map_Extend = Integer.parseInt(SimApp.initial_Map_Extend_inputTextField.getText());
-        SimApp.current_eval_iteration = Integer.parseInt(SimApp.eval_iteration_inputTextField.getText());
+        SimApp.evaluated_iteration = Integer.parseInt(SimApp.evaluated_iteration_inputTextField.getText());
         SimApp.threads = Integer.parseInt(SimApp.threads_inputTextField.getText());
         SimApp.optimization_iterations_per_thread = Integer.parseInt(SimApp.optimization_iterations_per_thread_inputTextField.getText());
         SimApp.max_optimization_time_per_thread = Integer.parseInt(SimApp.max_optimization_time_per_thread_inputTextField.getText());
         SimApp.ftol = Integer.parseInt(SimApp.ftol_inputTextField.getText());
-        SimApp.initial_step_size = Integer.parseInt(SimApp.initial_step_size_inputTextField.getText());
+        SimApp.step_size = Integer.parseInt(SimApp.initial_step_size_inputTextField.getText());
         SimApp.optimization_cycles = Integer.parseInt(SimApp.optimization_cycles_inputTextField.getText());
 
         MathEngine.bestLikelihood = Double.NEGATIVE_INFINITY; // POSITIVE_INFINITY // NEGATIVE_INFINITY;
         MathEngine.swarmPositioningOptimizers = new Optimizer[SimApp.threads];
-
-        SimApp.random.setSeed(Long.parseLong(SimApp.seed_inputTextField.getText()));
+        SimApp.seed = Long.parseLong(SimApp.seed_inputTextField.getText());
+        SimApp.random.setSeed(SimApp.seed);
     }
 
     private static void autoOptimizationResumer() {
