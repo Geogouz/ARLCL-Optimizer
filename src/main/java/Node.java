@@ -6,7 +6,7 @@ public class Node {
 
     static DecimalFormat df = new DecimalFormat("#.####");
     int id;
-    CircularDistanceLikelihood cdl;
+    DistanceLikelihood cdl;
 
     double true_relative_x;
     double true_relative_y;
@@ -33,7 +33,7 @@ public class Node {
 
         // Attach the CircularDistanceLikelihood function to this Node
         // This function will be updated throughout every positioning iteration
-        cdl = new CircularDistanceLikelihood(this);
+        cdl = new DistanceLikelihood(this);
     }
 
     public void setInitialRandomPositions(){

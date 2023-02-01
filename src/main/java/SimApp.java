@@ -1,5 +1,6 @@
 import org.jzy3d.chart.Chart;
 import org.jzy3d.chart.ContourChart;
+import org.jzy3d.plot3d.rendering.canvas.Quality;
 
 import javax.imageio.ImageIO;
 import javax.swing.*;
@@ -29,8 +30,11 @@ import static org.jzy3d.plot3d.primitives.SampleGeom.surface;
 
 public class SimApp extends Frame {
 
+    static long min_cycle_time;
+    static long startTime;
     static Frame app;
-
+    static Container chart_component_container_even = new Container();
+    static Container chart_component_container_odd = new Container();
     static int chart_plot_size;
 
     static boolean headless_mode;
@@ -87,10 +91,12 @@ public class SimApp extends Frame {
     static String previous_valid_project_name = "";
     static String previous_valid_plot_resolution = "";
 
-    static Component chart_plot_canvas;
-    static Component labels_plot_canvas;
+    static Component chart_component_even;
+    static Component chart_component_odd;
+    static Rectangle chart_components_bounds;
 
-    static ContourChart chart_plot;
+    static ContourChart chart_even;
+    static ContourChart chart_odd;
     static Chart labels_plot;
 
     static CustomTextArea outputTerminal;
@@ -408,7 +414,7 @@ public class SimApp extends Frame {
 
     private static void resetDataStructures() {
         System.out.println("Preparing data structures");
-
+        SimApp.min_cycle_time = Long.MAX_VALUE;
         SimApp.cycleCounter = 0;
         SimApp.stepCounter = 0;
 
@@ -450,11 +456,22 @@ public class SimApp extends Frame {
         final int r2_y = bar_height + window_height - settings_panel_height + small_text_height + tiny_gap;
         final int r2_height = 80;
 
-        SimApp.chart_plot_canvas = MathEngine.getLikelihoodFunction(null);
-        //SimApp.plot_area.setBounds(0, bar_height, c1_x-2, chart_plot_size);
-        SimApp.chart_plot_canvas.setBounds(0, bar_height, chart_plot_size, chart_plot_size);
-        add(SimApp.chart_plot_canvas, BorderLayout.CENTER);
+        SimApp.chart_odd = new ContourChart(Quality.Advanced().setHiDPIEnabled(true));
+        SimApp.chart_odd.view2d();
+        SimApp.chart_component_odd = (Component) SimApp.chart_odd.getCanvas();
+        SimApp.chart_component_odd.setBounds(0, 0, chart_plot_size, chart_plot_size);
+        SimApp.chart_components_bounds = SimApp.chart_component_odd.getBounds(); // Bounds to be used for all future charts
+        SimApp.chart_component_container_odd.setBounds(0, bar_height, chart_plot_size, chart_plot_size);
+        SimApp.chart_component_container_odd.add(SimApp.chart_component_odd, 0);
+        add(SimApp.chart_component_container_odd, BorderLayout.CENTER);
 
+        SimApp.chart_even = new ContourChart(Quality.Advanced().setHiDPIEnabled(true));
+        SimApp.chart_even.view2d();
+        SimApp.chart_component_even = (Component) SimApp.chart_even.getCanvas();
+        SimApp.chart_component_even.setBounds(SimApp.chart_components_bounds);
+        SimApp.chart_component_container_even.setBounds(0, bar_height, chart_plot_size, chart_plot_size);
+        SimApp.chart_component_container_even.add(SimApp.chart_component_even, 0);
+        add(SimApp.chart_component_container_even, BorderLayout.CENTER, 0);
 
         SimApp.outputTerminal = new CustomTextArea("",2,40, TextArea.SCROLLBARS_VERTICAL_ONLY);
 
@@ -532,7 +549,7 @@ public class SimApp extends Frame {
 
         // This Section is for the Plot Export Properties
         final int export_ProductLikelihood_Label_y = r2_y + r2_height + tiny_gap;
-        SimApp.plotResolution_LabelArea = new CustomTextArea("Extent [0,+]:",1,1, TextArea.SCROLLBARS_NONE);
+        SimApp.plotResolution_LabelArea = new CustomTextArea("Contours [0,+]:",1,1, TextArea.SCROLLBARS_NONE);
         SimApp.plotResolution_LabelArea.setBounds(c2_x, export_ProductLikelihood_Label_y, c2_content_width, small_text_height);
         SimApp.plotResolution_LabelArea.setBackground(Color.lightGray);
         SimApp.plotResolution_LabelArea.setEnabled(true);
@@ -540,7 +557,7 @@ public class SimApp extends Frame {
         add((TextArea) SimApp.plotResolution_LabelArea.getTextArea());
 
         final int plotResolution_inputTextArea_y = export_ProductLikelihood_Label_y + small_text_height;
-        SimApp.plotResolution_inputTextField = new CustomTextField("300");
+        SimApp.plotResolution_inputTextField = new CustomTextField("30");
         SimApp.plotResolution_inputTextField.setBounds(c2_x, plotResolution_inputTextArea_y, c2_content_width, small_text_height);
         SimApp.plotResolution_inputTextField.addTextListener(
                 new integerGreaterThanBoundEnsurer(SimApp.plotResolution_inputTextField, 0));
@@ -1184,6 +1201,7 @@ public class SimApp extends Frame {
                             try {
                                 Core.init();
                                 while (!SimApp.stop_optimization){
+                                    startTime = System.nanoTime();
                                     Core.resumeSwarmPositioningInGUIMode();
                                 }
 
@@ -1192,7 +1210,6 @@ public class SimApp extends Frame {
                             }
                         });
                         SimApp.controller_thread.start();
-
                     }
 
                     // Initiate the automated resumer
@@ -1390,20 +1407,20 @@ public class SimApp extends Frame {
             }
         }
 
-        if (MathEngine.NodePos_Results_filename != null){
-            // Dump all results in a log file
-            try (PrintWriter out = new PrintWriter(MathEngine.NodePos_Results_filename)) {
-                String current_logs = SimApp.outputTerminal.getText();
-                if (SimApp.headless_mode){
-                    out.println(current_logs);
-                }
-                else {
-                    out.println(current_logs.substring(0, current_logs.lastIndexOf("=========== Optimization Initiated ===========")));
-                }
-            } catch (FileNotFoundException exception) {
-                exception.printStackTrace();
-            }
-        }
+//        if (MathEngine.NodePos_Results_filename != null){
+//            // Dump all results in a log file
+//            try (PrintWriter out = new PrintWriter(MathEngine.NodePos_Results_filename)) {
+//                String current_logs = SimApp.outputTerminal.getText();
+//                if (SimApp.headless_mode){
+//                    out.println(current_logs);
+//                }
+//                else {
+//                    out.println(current_logs.substring(0, current_logs.lastIndexOf("=========== Optimization Initiated ===========")));
+//                }
+//            } catch (FileNotFoundException exception) {
+//                exception.printStackTrace();
+//            }
+//        }
     }
 
     static private class stopBtnAdapter implements ActionListener {
