@@ -30,8 +30,6 @@ import java.util.Map.Entry;
 public class Core {
     static String ProductFinalFunctionObject;
 
-    static String NodePos_Results_filename;
-
     static void init() throws Exception {
         SimApp.appendToTextArea("Initializing SwarmEngine");
 
@@ -277,7 +275,9 @@ public class Core {
 
             MapField.updateMapExtent();
 
-            publishResultsInGUI(SimApp.cycleCounter, SimApp.stepCounter, currentNode, false);
+            publishResultsInGUI(
+                    SimApp.cycleCounter, SimApp.stepCounter, currentNode,
+                    false, SimApp.export_ProductLikelihood_WolframPlot);
 
             // To use this for debugging whenever needed
 //            if (resetAll_CurrentNodePos_to_TruePos){
@@ -312,7 +312,9 @@ public class Core {
                 MapField.updateMapExtent();
                 // Check whether we are currently at the last step
                 if (last_step){
-                    publishResultsInGUI(SimApp.cycleCounter, SimApp.stepCounter, currentNode, true);
+                    publishResultsInGUI(
+                            SimApp.cycleCounter, SimApp.stepCounter, currentNode,
+                            true, SimApp.export_ProductLikelihood_WolframPlot);
                 }
 
                 // Check whether the requested cycles have been reached.
@@ -345,6 +347,13 @@ public class Core {
         if (SimApp.optimization_cycles == SimApp.cycleCounter){
             System.out.println("Cycles finished");
             SimApp.stop_optimization = true;
+
+            // At this point we can store the results.log for this iteration
+            SimApp.writeString2File(
+                    Paths.get(SimApp.output_iteration_results_folder_path,"results.log").toString(),
+                    SimApp.outputTerminal.getText()
+            );
+
             return;
         }
 
@@ -368,6 +377,8 @@ public class Core {
         if (SimApp.results_per_step){
 
             SimApp.stepCounter = SimApp.stepCounter + 1;
+            boolean cycle_end = SimApp.stepCounter == SimApp.nodeID_to_nodeObject.size();
+            boolean export_plot = SimApp.export_ProductLikelihood_WolframPlot && cycle_end;
 
 //            System.out.println(SimApp.stepCounter + ", " + SimApp.nodeID_to_nodeObject.size());
 
@@ -386,17 +397,15 @@ public class Core {
             MapField.updateMapExtent();
 
             // If the auto resumer is activated, rendering a new chart on every step might be too difficult for the GUI
+            // We use the same optimization function to publish the likelihood at the end of a cycle
             if (SimApp.auto_resumer_btn.getState()){
-                // We use the same optimization function to publish the likelihood at the end of a cycle
-                publishResultsInGUI(SimApp.cycleCounter, SimApp.stepCounter, currentNode,
-                        SimApp.stepCounter == SimApp.nodeID_to_nodeObject.size()
-                );
+                publishResultsInGUI(
+                        SimApp.cycleCounter, SimApp.stepCounter, currentNode, cycle_end, export_plot);
             }
             else{
-                // We use the same optimization function to publish the likelihood at the end of a step
-                publishResultsInGUI(SimApp.cycleCounter, SimApp.stepCounter, currentNode,
-                        SimApp.stepCounter == SimApp.nodeID_to_nodeObject.size()
-                );
+                // Auto resumer is not activated. We have enough rendering time available to draw the step
+                publishResultsInGUI(
+                        SimApp.cycleCounter, SimApp.stepCounter, currentNode,true, export_plot);
             }
 
             // To use this for debugging whenever needed
@@ -435,7 +444,9 @@ public class Core {
                 // Check whether we are currently at the last step
                 if (last_step){
                     // We use the same optimization function to publish the likelihood at the end of a cycle
-                    publishResultsInGUI(SimApp.cycleCounter, SimApp.stepCounter, currentNode, true);
+                    publishResultsInGUI(
+                            SimApp.cycleCounter, SimApp.stepCounter, currentNode,
+                            true, SimApp.export_ProductLikelihood_WolframPlot);
                 }
             }
         }
@@ -445,60 +456,38 @@ public class Core {
         SimApp.appendToTextArea("=========== Optimization Finished ===========");
     }
 
-    static void publishResultsInGUI(int cycle, int step, Node currentNode, boolean draw_cycle_chart) {
+    static void publishResultsInGUI(int cycle, int step, Node currentNode,
+                                    boolean draw_cycle_chart, boolean export_plot) {
 
-        System.out.println("Publishing: " + SimApp.clean_evaluated_scenario_name + " Cycle:" + cycle);
+//        System.out.println("Publishing: " + SimApp.clean_evaluated_scenario_name + " Cycle:" + cycle);
 
-        String NodePos_CMD_filename = Paths.get(
-                SimApp.output_iterated_results_folder_path,
-                "Positions_c" + cycle + "_s" + step + "_n" + currentNode.id + ".txt"
-        ).toString();
+        if (export_plot){
+            String NodePos_CMD_filename = Paths.get(
+                    SimApp.output_iteration_results_folder_path,
+                    "Positions_c" + cycle + "_s" + step + "_n" + currentNode.id + ".txt"
+            ).toString();
 
-        String NodePos_Plot_filename = Paths.get(
-                SimApp.output_iterated_results_folder_path,
-                "Positions_c" + cycle + "_s" + step + "_n" + currentNode.id + ".jpeg"
-        ).toString();
+            String NodePos_Plot_filename = Paths.get(
+                    SimApp.output_iteration_results_folder_path,
+                    "Positions_c" + cycle + "_s" + step + "_n" + currentNode.id + ".jpeg"
+            ).toString();
 
+            ArrayList<String>[] mathematica_components_for_plot_sections = collectComponentsForWolframPlotSections(currentNode);
 
-        NodePos_Results_filename = Paths.get(
-                SimApp.output_iterated_results_folder_path,
-                "results.log"
-        ).toString();
-
-        ArrayList<String>[] mathematica_components_for_plot_sections = collectComponentsForWolframPlotSections(currentNode);
-
-        String ProductLikelihood_WolframCMD = "";
-
-        // Check if the user has selected to export also the ProductLikelihood
-        if (SimApp.export_ProductLikelihood_WolframPlot_function_btn.getState()){
             // Create the Wolfram command
-            ProductLikelihood_WolframCMD = buildFunctionSectionOfWolframCommand(mathematica_components_for_plot_sections[1]);
-        }
+            String ProductLikelihood_WolframCMD = buildFunctionSectionOfWolframCommand(mathematica_components_for_plot_sections[1]);
 
-        // Execute the Wolfram CMD that will generate the Canvas contents (i.e. the node's positions)
-        String NodePos_WolframExportCMD;
+            // Generate the final Wolfram command which we need to execute for producing the likelihood plot
+            String wolfram_export_command = ProductLikelihood_WolframCMD + mathematica_components_for_plot_sections[0].get(0);
 
-        //Add to below (If we want to show also likelihood)
-        if (SimApp.export_ProductLikelihood_WolframPlot_function_btn.getState()){
-            // Generate the final Wolfram command which we need to execute
-            NodePos_WolframExportCMD = mergeLikelihoodComponentsToWolframFunction(
-                    ProductLikelihood_WolframCMD + mathematica_components_for_plot_sections[0].get(0),
-                    NodePos_Plot_filename,
-                    "model, ");
-        }
-        else {
-            // Generate the final Wolfram command which we need to execute
-            NodePos_WolframExportCMD = mergeLikelihoodComponentsToWolframFunction(
-                    mathematica_components_for_plot_sections[0].get(0), NodePos_Plot_filename, "");
+            // Export the String to a file
+            SimApp.writeString2File(NodePos_CMD_filename, wolfram_export_command);
         }
 
         // We draw only the state at the end of a cycle. This limitation is due to the limited drawing speed.
         if (draw_cycle_chart){
             drawCycleChart(currentNode);
         }
-
-        // Export the String to a file
-//        SimApp.writeString2File(NodePos_CMD_filename, NodePos_WolframExportCMD);
     }
 
     private static void drawCycleChart(Node currentNode) {
@@ -515,8 +504,6 @@ public class Core {
 //        System.out.println("Lapsed time: " + SimApp.min_cycle_time);
 
         updateContainer(odd_cycles);
-
-        System.gc();
     }
 
     private static void removeOldChartComponentFromContainer(boolean odd_cycles) {
@@ -567,19 +554,13 @@ public class Core {
         if (cycle == SimApp.optimization_cycles || cycle == 50 || cycle == 100 || cycle == 150 || cycle == 200 || cycle == 250){
 
             String NodePos_CMD_filename = Paths.get(
-                    SimApp.output_iterated_results_folder_path,
+                    SimApp.output_iteration_results_folder_path,
                     "Positions_c" + cycle + "_s" + step + "_n" + currentNode.id + ".txt"
             ).toString();
 
             String NodePos_Plot_filename = Paths.get(
-                    SimApp.output_iterated_results_folder_path,
+                    SimApp.output_iteration_results_folder_path,
                     "Positions_c" + cycle + "_s" + step + "_n" + currentNode.id + ".jpeg"
-            ).toString();
-
-
-            NodePos_Results_filename = Paths.get(
-                    SimApp.output_iterated_results_folder_path,
-                    "results.log"
             ).toString();
 
             ArrayList<String>[] mathematica_plot_components = collectComponentsForWolframPlotSections(currentNode);
@@ -590,16 +571,16 @@ public class Core {
             ProductLikelihood_WolframCMD = buildFunctionSectionOfWolframCommand(mathematica_plot_components[1]);
 
             // Execute the Wolfram CMD that will generate the Canvas contents (i.e. the node's positions)
-            String NodePos_WolframExportCMD;
+            String wolfram_export_command;
 
             // Generate the final Wolfram command which we need to execute
-            NodePos_WolframExportCMD = mergeLikelihoodComponentsToWolframFunction(
+            wolfram_export_command = mergeLikelihoodComponentsToWolframFunction(
                     ProductLikelihood_WolframCMD + mathematica_plot_components[0].get(0),
-                    NodePos_Plot_filename,
-                    "model, ");
+                    NodePos_Plot_filename
+            );
 
             // Export the String to a file
-            SimApp.writeString2File(NodePos_CMD_filename, NodePos_WolframExportCMD);
+            SimApp.writeString2File(NodePos_CMD_filename, wolfram_export_command);
         }
     }
 
@@ -646,7 +627,8 @@ public class Core {
             SimApp.chart_component_odd.setBounds(SimApp.chart_components_bounds);
         }
         else{
-            SimApp.chart_even.dispose();
+            try {SimApp.chart_even.dispose();}
+            catch (Exception ignored) {}
 
             // Show the extent only if resolution is set higher than 10
             if (contours_on){
@@ -679,6 +661,8 @@ public class Core {
         }
     }
 
+    // Keep in mind that this function (especially getFilledContourImage()) is quite heavy and prone to memory leaks.
+    // To be used only for visualization in GUI mode since it takes most performance out from the localization.
     public static BufferedImage getContourImage(Range x_range, Range y_range) {
         // Function for creating a contours plot
         Mapper mapper = new Mapper(){
@@ -857,17 +841,17 @@ public class Core {
         return plot_cmd;
     }
 
-    private static String mergeLikelihoodComponentsToWolframFunction(String cmd_to_export, String filename, String extra_items_to_show){
+    private static String mergeLikelihoodComponentsToWolframFunction(String cmd_to_export, String filename){
 
 //        System.out.println("Likelihood components collected. Merging function.");
 
         // Make a check here to see if the list containing the effective_nodes has the same size as the entire Node db-1
         // This means that there is no non-Effective Node. Hence, we need to exclude Plot B
         if (SimApp.effective_remoteNodes.size() == (SimApp.nodeID_to_nodeObject.size()-1)){
-            return cmd_to_export + "\nExport[\"export/" + filename + "\", Show[" + extra_items_to_show + "plotA, plotC], ImageSize -> {1600, 1000}, \"CompressionLevel\" -> 0]";
+            return cmd_to_export + "\nExport[\"export/" + filename + "\", Show[model, plotA, plotC], ImageSize -> {1600, 1000}, \"CompressionLevel\" -> 0]";
         }
         else{
-            return cmd_to_export + "\nExport[\"export/" + filename + "\", Show[" + extra_items_to_show + "plotA, plotB, plotC], ImageSize -> {1600, 1000}, \"CompressionLevel\" -> 0]";
+            return cmd_to_export + "\nExport[\"export/" + filename + "\", Show[" + "model, " + "plotA, plotB, plotC], ImageSize -> {1600, 1000}, \"CompressionLevel\" -> 0]";
         }
     }
 

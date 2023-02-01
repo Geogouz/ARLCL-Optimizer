@@ -1,4 +1,3 @@
-import org.jzy3d.chart.Chart;
 import org.jzy3d.chart.ContourChart;
 import org.jzy3d.plot3d.rendering.canvas.Quality;
 
@@ -37,16 +36,17 @@ public class SimApp extends Frame {
     static Container chart_component_container_odd = new Container();
     static int chart_plot_size;
 
-    static boolean headless_mode;
-
     // This data structure will store each evaluation case
     static String[] eval_scenario;
-
+    static boolean headless_mode;
     static boolean results_per_step;
     static boolean results_per_cycle;
     static boolean ble_model;
     static boolean uwb_model;
     static boolean export_ProductLikelihood_WolframPlot;
+    static boolean optimization_running;
+    static boolean stop_optimization;
+    static boolean resume_flag;
     static int plotResolution;
 
     // Optimization's Parameters
@@ -59,17 +59,13 @@ public class SimApp extends Frame {
     static double ftol;
     static int initial_step_size;
     static int optimization_cycles;
-
     static Integer ending_eval_iteration;
     static int current_eval_iteration;
-
     static String clean_evaluated_scenario_name;
     static String input_file_path;
     static String input_file_extension;
     static String outpath_results_folder_path;
-    static String output_iterated_results_folder_path;
-
-
+    static String output_iteration_results_folder_path;
     // Create a map having <Node IDs, Node Objects> as <key, value> pairs
     static LinkedHashMap<Integer, Node> nodeID_to_nodeObject;
     static List<Integer> OrderedByBeliefsStrength_NodeIDs;
@@ -79,34 +75,21 @@ public class SimApp extends Frame {
     static ArrayList<Integer> effective_remoteNodes;
 
     static double max_distance = 1000.;
-    static boolean optimization_running;
-    static boolean stop_optimization;
-    static boolean rendering_wolfram_data;
-
     static DecimalFormat two_decimals_formatter = new DecimalFormat("#.##");
 
-    static boolean no_opt_executed_yet = true;
     static WnAdapter window_adapter;
-
     static String previous_valid_project_name = "";
     static String previous_valid_plot_resolution = "";
-
     static Component chart_component_even;
     static Component chart_component_odd;
     static Rectangle chart_components_bounds;
-
     static ContourChart chart_even;
     static ContourChart chart_odd;
-    static Chart labels_plot;
-
     static CustomTextArea outputTerminal;
     static CustomTextArea productLikelihood_WolframPlot_LabelArea;
-    static CustomTextArea optimization_order_Label;
     static CustomTextArea rangingModel_LabelArea;
     static CustomTextArea resultsPer_LabelArea;
     static CustomTextArea optimizationParameters_LabelArea;
-
-    static CustomTextArea projectName_LabelArea;
     static CustomTextArea loaded_db_name_LabelArea;
     static CustomTextArea kNearestNeighbours_for_BeliefsStrength_LabelArea;
     static CustomTextArea max_optimization_time_per_thread_LabelArea;
@@ -120,7 +103,6 @@ public class SimApp extends Frame {
     static CustomTextArea seed_LabelArea;
     static CustomTextArea eval_iteration_LabelArea;
     static CustomTextArea threads_LabelArea;
-
     static CustomTextField projectName_inputTextField;
     static CustomTextField kNearestNeighbours_for_BeliefsStrength_inputTextField;
     static CustomTextField max_optimization_time_per_thread_inputTextField;
@@ -134,11 +116,9 @@ public class SimApp extends Frame {
     static CustomTextField seed_inputTextField;
     static CustomTextField eval_iteration_inputTextField;
     static CustomTextField threads_inputTextField;
-
     static CustomButton openDB_Btn;
     static CustomButton clearTerminalBtn;
     static CustomCheckbox auto_resumer_btn;
-
     static CustomToggleButton go_Toggle_btn;
     static CustomButton resume_btn;
     static CustomCheckbox results_per_step_btn;
@@ -147,15 +127,11 @@ public class SimApp extends Frame {
     static CustomCheckbox ble_model_btn;
     static CustomCheckbox uwb_model_btn;
     static CustomCheckbox export_ProductLikelihood_WolframPlot_function_btn;
-
     static Thread t1;
     static Thread controller_thread;
-
     static SimpleDateFormat day_formatter = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss");
-
     static ScheduledExecutorService scheduler;
     static ScheduledFuture<?> scheduled_auto_resumer;
-
     static int cycleCounter;
     static int stepCounter;
 
@@ -279,7 +255,7 @@ public class SimApp extends Frame {
         // We now zip the folder and wipe everything
         try {
             System.out.println("Storing results");
-            storeResults();
+            SimApp.storeResults();
 
             File directoryToBeDeleted = new File(SimApp.outpath_results_folder_path + SimApp.clean_evaluated_scenario_name);
             deleteDirectory(directoryToBeDeleted);
@@ -321,7 +297,7 @@ public class SimApp extends Frame {
         fis.close();
     }
 
-    private static void storeResults() throws IOException {
+    static void storeResults() throws IOException {
         System.out.println(SimApp.outpath_results_folder_path + SimApp.clean_evaluated_scenario_name);
         String sourceFile = SimApp.outpath_results_folder_path + SimApp.clean_evaluated_scenario_name;
         FileOutputStream fos = new FileOutputStream(sourceFile+".zip");
@@ -400,21 +376,19 @@ public class SimApp extends Frame {
         final int r2_y = bar_height + window_height - settings_panel_height + small_text_height + tiny_gap;
         final int r2_height = 80;
 
-        SimApp.chart_odd = new ContourChart(Quality.Advanced().setHiDPIEnabled(true));
-        SimApp.chart_odd.view2d();
-        SimApp.chart_component_odd = (Component) SimApp.chart_odd.getCanvas();
+        setEmptyChartComponents();
+
         SimApp.chart_component_odd.setBounds(0, 0, chart_plot_size, chart_plot_size);
         SimApp.chart_components_bounds = SimApp.chart_component_odd.getBounds(); // Bounds to be used for all future charts
-        SimApp.chart_component_container_odd.setBounds(0, bar_height, chart_plot_size, chart_plot_size);
-        SimApp.chart_component_container_odd.add(SimApp.chart_component_odd, 0);
-        add(SimApp.chart_component_container_odd, BorderLayout.CENTER);
-
-        SimApp.chart_even = new ContourChart(Quality.Advanced().setHiDPIEnabled(true));
-        SimApp.chart_even.view2d();
-        SimApp.chart_component_even = (Component) SimApp.chart_even.getCanvas();
         SimApp.chart_component_even.setBounds(SimApp.chart_components_bounds);
+
+        SimApp.chart_component_container_odd.setBounds(0, bar_height, chart_plot_size, chart_plot_size);
         SimApp.chart_component_container_even.setBounds(0, bar_height, chart_plot_size, chart_plot_size);
+
+        SimApp.chart_component_container_odd.add(SimApp.chart_component_odd, 0);
         SimApp.chart_component_container_even.add(SimApp.chart_component_even, 0);
+
+        add(SimApp.chart_component_container_odd, BorderLayout.CENTER);
         add(SimApp.chart_component_container_even, BorderLayout.CENTER, 0);
 
         SimApp.outputTerminal = new CustomTextArea("",2,40, TextArea.SCROLLBARS_VERTICAL_ONLY);
@@ -509,7 +483,7 @@ public class SimApp extends Frame {
 
         final int export_ProductLikelihood_WolframPlot_function_Label_height = (plotResolution_inputTextArea_y + small_text_height) - export_ProductLikelihood_Label_y;
         final int export_ProductLikelihood_WolframPlot_function_btn_y = plotResolution_inputTextArea_y - 2;
-        SimApp.export_ProductLikelihood_WolframPlot_function_btn = new CustomCheckbox("Export function", true, null);
+        SimApp.export_ProductLikelihood_WolframPlot_function_btn = new CustomCheckbox("Export function", false, null);
         SimApp.export_ProductLikelihood_WolframPlot_function_btn.setBounds(c1_x + tiny_gap, export_ProductLikelihood_WolframPlot_function_btn_y, c1_content_width-tiny_gap, small_text_height);
         add((Checkbox) SimApp.export_ProductLikelihood_WolframPlot_function_btn.getCheckbox());
 
@@ -526,20 +500,22 @@ public class SimApp extends Frame {
 
         // This Section is for the Optimization Starter
         int go_Toggle_btn_y = export_ProductLikelihood_Label_y + export_ProductLikelihood_WolframPlot_function_Label_height + tiny_gap;
-        SimApp.go_Toggle_btn = new CustomToggleButton("GO");
+        SimApp.go_Toggle_btn = new CustomToggleButton("START OPT");
         SimApp.go_Toggle_btn.addActionListener(new executeOptimizationJobInGuiAdapter());
         SimApp.go_Toggle_btn.setBounds(c1_x, go_Toggle_btn_y, c1_content_width, medium_text_height);
+        SimApp.go_Toggle_btn.setVisible(false);
+        add((JToggleButton) SimApp.go_Toggle_btn.getToggleButton());
 
-        SimApp.resume_btn = new CustomButton("NEXT");
+        SimApp.resume_btn = new CustomButton("Resume >>");
         SimApp.resume_btn.addActionListener(new resumeOptimizationJobInGuiAdapter());
         SimApp.resume_btn.setBounds(c2_x, go_Toggle_btn_y, c1_content_width, medium_text_height);
+        SimApp.resume_btn.setVisible(false);
+        add((Button) SimApp.resume_btn.getButton());
 
         int auto_resumer_btn_y = go_Toggle_btn_y + medium_text_height + tiny_gap;
         SimApp.auto_resumer_btn = new CustomCheckbox("Auto resume", false, null);
         SimApp.auto_resumer_btn.setBounds(c2_x + tiny_gap, auto_resumer_btn_y, c2_content_width, small_text_height);
-
-        SimApp.go_Toggle_btn.setVisible(false);
-        add((JToggleButton) SimApp.go_Toggle_btn.getToggleButton());
+        SimApp.auto_resumer_btn.setVisible(false);
         add((Checkbox) SimApp.auto_resumer_btn.getCheckbox());
 
 
@@ -778,6 +754,41 @@ public class SimApp extends Frame {
         //auto_optimization_resumer(); // TODO: Remove
     }
 
+    private static void resetChartCanvas() {
+        try {SimApp.chart_odd.dispose();}
+        catch (Exception ignored) {}
+
+        try {SimApp.chart_even.dispose();}
+        catch (Exception ignored) {}
+
+        try {SimApp.chart_component_container_odd.remove(SimApp.chart_component_odd);}
+        catch (Exception ignored) {}
+
+        try {SimApp.chart_component_container_even.remove(SimApp.chart_component_even);}
+        catch (Exception ignored) {}
+
+        setEmptyChartComponents();
+
+        SimApp.chart_component_odd.setBounds(SimApp.chart_components_bounds);
+        SimApp.chart_component_even.setBounds(SimApp.chart_components_bounds);
+
+        try {SimApp.chart_component_container_odd.add(SimApp.chart_component_odd, 0);}
+        catch (Exception ignored) {}
+
+        try {SimApp.chart_component_container_even.add(SimApp.chart_component_even, 0);}
+        catch (Exception ignored) {}
+    }
+
+    private static void setEmptyChartComponents() {
+        SimApp.chart_odd = new ContourChart(Quality.Advanced().setHiDPIEnabled(true));
+        SimApp.chart_odd.view2d();
+        SimApp.chart_even = new ContourChart(Quality.Advanced().setHiDPIEnabled(true));
+        SimApp.chart_even.view2d();
+
+        SimApp.chart_component_odd = (Component) SimApp.chart_odd.getCanvas();
+        SimApp.chart_component_even = (Component) SimApp.chart_even.getCanvas();
+    }
+
     public static void changeConfigurationPanelEnabledState(boolean state) {
         SimApp.openDB_Btn.setEnabled(state);
         SimApp.results_per_step_btn.setEnabled(state);
@@ -808,91 +819,76 @@ public class SimApp extends Frame {
         // On the very first iteration, ensure that folder structure is as supposed to be
         if (SimApp.current_eval_iteration == 0){
             // First ensure that the given output path folder path to store the estimations is valid
-            SimApp.ensureFolderExistence(SimApp.outpath_results_folder_path);
+            SimApp.ensureFolder(SimApp.outpath_results_folder_path);
 
             // Then, ensure that the given project name exists as a folder
-            SimApp.ensureFolderExistence(SimApp.outpath_results_folder_path + SimApp.clean_evaluated_scenario_name + "/");
+            SimApp.ensureFolder(SimApp.outpath_results_folder_path + SimApp.clean_evaluated_scenario_name + "/");
         }
 
         // Construct the destination path for the results of current iteration
-        SimApp.output_iterated_results_folder_path = SimApp.outpath_results_folder_path + SimApp.clean_evaluated_scenario_name + "/" + SimApp.current_eval_iteration + "/";
+        SimApp.output_iteration_results_folder_path = SimApp.outpath_results_folder_path + SimApp.clean_evaluated_scenario_name + "/" + SimApp.current_eval_iteration + "/";
 
         // Check whether current iteration has already been done before
-        boolean proceed_with_optimization = SimApp.handlePreviousResults(output_iterated_results_folder_path);
+        boolean iteration_results_already_available = SimApp.handlePreviousIterationResults(false);
 
         // Initiate the automated resumer
         autoOptimizationResumer();
 
         // Proceed or not with current iteration depending on the existence of previous results
-        if (!proceed_with_optimization){
+        if (iteration_results_already_available){
             // Stop the auto-resumer for the current optimization process
             SimApp.scheduled_auto_resumer.cancel(true);
             SimApp.scheduler.shutdown();
         }
     }
 
-    public static boolean directoriesCheck() {
-
-        // Only one iteration will be performed since we are in a graphical environment.
-        // Ensure that the required exporting folder structure exists
-
-        String evaluated_scenario_destination_path = Paths.get(
-                SimApp.outpath_results_folder_path,
-                SimApp.clean_evaluated_scenario_name
-        ).toString();
-
-        System.out.println("Ensuring " + evaluated_scenario_destination_path);
-        SimApp.ensureFolderExistence(evaluated_scenario_destination_path);
-
+    // This method takes care of the proper folder structure.
+    // After any handling, it returns False only if we have already executed current evaluation iteration
+    private static boolean handlePreviousIterationResults(boolean force_clean) {
         // Construct the destination path for the results of current iteration
-        SimApp.output_iterated_results_folder_path = Paths.get(
+        SimApp.output_iteration_results_folder_path = Paths.get(
                 SimApp.outpath_results_folder_path,
                 SimApp.clean_evaluated_scenario_name,
                 String.valueOf(SimApp.current_eval_iteration)
         ).toString();
 
-        // Check whether current iteration has already been done before
-        return SimApp.handlePreviousResults(output_iterated_results_folder_path);
-    }
-
-    // This method takes care of the proper folder structure.
-    // After any handling, it returns False only if we have already executed current evaluation iteration
-    private static boolean handlePreviousResults(String output_iterated_results_folder_path) {
-        System.out.println("\nChecking for previous results at: " + output_iterated_results_folder_path);
+        System.out.println("\nChecking for previous results at: " + SimApp.output_iteration_results_folder_path);
 
         // Then, ensure that the given project name exists as a folder
-        if (SimApp.ensureFolderExistence(output_iterated_results_folder_path)){
+        if (SimApp.ensureFolder(SimApp.output_iteration_results_folder_path)){
             // Being here means that this iteration has not been executed before
-            System.out.println("Destination folder: " + output_iterated_results_folder_path + " has been created");
-            return true;
+            System.out.println("Destination folder: " + SimApp.output_iteration_results_folder_path + " has been created");
+            return false;
         }
         else{
-            System.out.println("Destination folder: " + output_iterated_results_folder_path + " already exists");
+            System.out.println("Destination folder: " + SimApp.output_iteration_results_folder_path + " already exists");
 
             // Being here means that this iteration has been executed before.
             // Therefore, we need to check whether the previous results have been successfully delivered
-            File result_file = new File(output_iterated_results_folder_path + "/results.log");
+            File result_file = new File(
+                    Paths.get(SimApp.output_iteration_results_folder_path,"results.log").toString()
+            );
             boolean result_file_exists = result_file.exists();
 
-            if (result_file_exists){
+            if (result_file_exists && !force_clean){
                 // Being here means that a result file has been located. Therefore, we need to skip this iteration
                 System.out.println("Previous results have finished. Proceeding to next iteration");
-                return false;
+                return true;
             }
             else{
                 // Being here means that a result file has not been.
-                // Therefore, we wipe current folder and we start from the beginning
+                // Therefore, we wipe current folder, and we start from the beginning
                 System.out.println("Previous results have not finished.");
 
-                File directoryToBeDeleted = new File(output_iterated_results_folder_path);
+                File directoryToBeDeleted = new File(SimApp.output_iteration_results_folder_path);
 
                 boolean folder_deleted = deleteDirectory(directoryToBeDeleted);
-                System.out.println("Deleting directory: " + output_iterated_results_folder_path + " = " + folder_deleted);
+                System.out.println("Deleting directory: " + SimApp.output_iteration_results_folder_path + " = " + folder_deleted);
 
                 boolean folder_created = directoryToBeDeleted.mkdirs();
-                System.out.println("Creating directory: " + output_iterated_results_folder_path + " = " + folder_created);
+                System.out.println("Creating directory: " + SimApp.output_iteration_results_folder_path + " = " + folder_created);
 
-                return true;
+                return false;
             }
         }
     }
@@ -965,7 +961,7 @@ public class SimApp extends Frame {
             }
 
             String summary_msg ="\n=========== Optimization Initiated ===========" +
-                    "\nExport folder: " + SimApp.output_iterated_results_folder_path +
+                    "\nExport folder: " + SimApp.output_iteration_results_folder_path +
                     "\nMax step-optimization runtime per thread: " + SimApp.max_optimization_time_per_thread_inputTextField.getText() + "ms" +
                     "\nMin effective measurement value: " + SimApp.min_effective_measurement_inputTextField.getText() + "units" +
                     "\nftol: " + ftol +
@@ -996,6 +992,9 @@ public class SimApp extends Frame {
         changeConfigurationPanelEnabledState(true);
         SimApp.go_Toggle_btn.setClicked(false);
         SimApp.go_Toggle_btn.setText("GO");
+        SimApp.resume_btn.setVisible(false);
+        SimApp.auto_resumer_btn.setVisible(false);
+        SimApp.auto_resumer_btn.setState(false);
     }
 
     private static void prepareInitializationLog() {
@@ -1014,7 +1013,7 @@ public class SimApp extends Frame {
             likelihoods_export = "Wolfram Plot]\n";
         }
         String summary_msg ="\n=========== Optimization Initiated ===========" +
-                "\nExport folder: " + SimApp.output_iterated_results_folder_path +
+                "\nExport folder: " + SimApp.output_iteration_results_folder_path +
                 "\nMax step-optimization runtime per thread: " + SimApp.max_optimization_time_per_thread_inputTextField.getText() + "ms" +
                 "\nMin effective measurement value: " + SimApp.min_effective_measurement_inputTextField.getText() + "units" +
                 "\nftol: " + ftol +
@@ -1069,7 +1068,7 @@ public class SimApp extends Frame {
         scheduled_auto_resumer = scheduler.scheduleAtFixedRate(auto_resumer, 0, 100, MILLISECONDS);
     }
 
-    static boolean ensureFolderExistence(String selected_path){
+    static boolean ensureFolder(String selected_path){
         File directory = new File(selected_path);
         return directory.mkdirs();
     }
@@ -1090,7 +1089,7 @@ public class SimApp extends Frame {
 //        System.out.println("Data for exporting: " + data);
 
         try (PrintWriter out = new PrintWriter(filename)) {
-            out.println(data.substring(0, data.lastIndexOf("\n")));
+            out.println(data);
             // Make a check here to see if the list containing the effective_nodes has the same size as the entire Node db-1
             // This means that there is no non-Effective Node. Hence, we need to exclude Plot B
             if (SimApp.effective_remoteNodes.size() == (SimApp.nodeID_to_nodeObject.size()-1)){
@@ -1187,32 +1186,36 @@ public class SimApp extends Frame {
             FileDialog fd = new FileDialog(frame, "Test", FileDialog.LOAD);
             fd.setVisible(true);
 
-            int dotIndex = fd.getFile().lastIndexOf(".");
-            input_file_extension = fd.getFile().substring(dotIndex);
+            // Check whether the user has selected a valid file
+            if (fd.getFile() != null){
+                int dotIndex = fd.getFile().lastIndexOf(".");
+                input_file_extension = fd.getFile().substring(dotIndex);
 
-            SimApp.clean_evaluated_scenario_name = fd.getFile().substring(0, dotIndex);
+                SimApp.clean_evaluated_scenario_name = fd.getFile().substring(0, dotIndex);
 
-            SimApp.input_file_path = Paths.get(
-                    fd.getDirectory(),
-                    fd.getFile()
-            ).toString();
+                SimApp.input_file_path = Paths.get(
+                        fd.getDirectory(),
+                        fd.getFile()
+                ).toString();
 
-            SimApp.outpath_results_folder_path = fd.getDirectory();
-            SimApp.loaded_db_name_LabelArea.setBackground(Color.white);
-            //SimApp.loaded_db_name_LabelArea.setText(SimApp.clean_evaluated_scenario_name + " at " + fd.getDirectory());
-            SimApp.loaded_db_name_LabelArea.setText(SimApp.clean_evaluated_scenario_name);
-            SimApp.go_Toggle_btn.setVisible(true);
+                SimApp.outpath_results_folder_path = fd.getDirectory();
+                SimApp.loaded_db_name_LabelArea.setBackground(Color.white);
+                //SimApp.loaded_db_name_LabelArea.setText(SimApp.clean_evaluated_scenario_name + " at " + fd.getDirectory());
+                SimApp.loaded_db_name_LabelArea.setText(SimApp.clean_evaluated_scenario_name);
+                SimApp.go_Toggle_btn.setVisible(true);
 
-            //System.out.println(evaluated_scenario_name + " database in " + input_file_path + " loaded."); // TODO: Add it on terminal
+                SimApp.resetChartCanvas();
+                System.gc();
 
+                //System.out.println(evaluated_scenario_name + " database in " + input_file_path + " loaded."); // TODO: Add it on terminal
+            }
         }
     }
 
     static private class resumeOptimizationJobInGuiAdapter implements ActionListener {
         public void actionPerformed(ActionEvent e) {
-
+            SimApp.resume_flag = true;
         }
-
     }
 
     static private class executeOptimizationJobInGuiAdapter implements ActionListener {
@@ -1231,9 +1234,22 @@ public class SimApp extends Frame {
                     changeConfigurationPanelEnabledState(false);
 
                     resetDataStructures();
-                    boolean proceed_with_optimization = directoriesCheck();
 
-                    if (proceed_with_optimization){
+                    // Only one iteration will be performed since we are in a graphical environment.
+                    // Ensure that the required exporting folder structure exists
+
+                    String evaluated_scenario_destination_path = Paths.get(
+                            SimApp.outpath_results_folder_path,
+                            SimApp.clean_evaluated_scenario_name
+                    ).toString();
+
+                    System.out.println("Ensuring scenario root folder" + evaluated_scenario_destination_path);
+                    SimApp.ensureFolder(evaluated_scenario_destination_path);
+
+                    // Check whether current iteration has already been done before
+                    boolean iteration_results_already_available =  SimApp.handlePreviousIterationResults(true);
+
+                    if (!iteration_results_already_available){
 
                         resetTextArea();
 
@@ -1246,9 +1262,26 @@ public class SimApp extends Frame {
                             try {
                                 Core.init();
                                 while (!SimApp.stop_optimization){
-                                    if (SimApp.auto_resumer_btn.getState()){
+                                    // If the auto_resumer_btn is not enabled, we will enter a pause state.
+                                    // Activate the resuming button for the user to be able to proceed manually.
+                                    SimApp.resume_btn.setVisible(true);
+                                    SimApp.auto_resumer_btn.setVisible(true);
+
+                                    if (SimApp.auto_resumer_btn.getState() || resume_flag){
+
+                                        resume_flag = false;
+
+                                        // Hide the resumer button
+                                        SimApp.resume_btn.setVisible(false);
+
                                         startTime = System.nanoTime();
                                         Core.resumeSwarmPositioningInGUIMode();
+
+                                        // We completed executing this optimization part. If  the auto_resumer_btn is
+                                        // not enabled, we are entering a pause state. Therefore, activate the resuming
+                                        // button for the user to be able to proceed manually.
+                                        SimApp.resume_btn.setVisible(true);
+                                        System.gc();
                                     }
                                     else{
                                         Thread.sleep(1000);
@@ -1262,20 +1295,6 @@ public class SimApp extends Frame {
                         });
                         SimApp.controller_thread.start();
                     }
-
-                    // Initiate the automated resumer
-                    //autoOptimizationResumer();
-
-                    // Proceed or not with current iteration depending on the existence of previous results
-//                    if (!proceed_with_optimization){
-//                        // Stop the auto-resumer for the current optimization process
-//                        SimApp.scheduled_auto_resumer.cancel(true);
-//                        SimApp.scheduler.shutdown();
-//                    }
-
-                    //resume();
-                    //executeOptimizationJobsInGui();
-
                 } catch (Exception ex) {
                     ex.printStackTrace();
                     StackTraceElement[] stackTraceElements = ex.getStackTrace();
@@ -1446,8 +1465,6 @@ public class SimApp extends Frame {
         } catch (IOException e) {
             e.printStackTrace();
         }
-
-        // todo: mathCanvas.setImage(scaledImage);
     }
 
     private static void executeOptimizationJobsInGui() {
@@ -1459,30 +1476,10 @@ public class SimApp extends Frame {
         } catch (Exception e) {
             e.printStackTrace();
             // At this point we can close the program
-            System.exit(0);
-        }
-
-        // Wait for almost "infinite" amount of time for the auto resume scheduler to finish.
-        // Then we shall continue with the next iteration
-        try {
-            scheduler.awaitTermination(10000000, SECONDS); // TODO: Hardcoded to be changed
-        } catch (InterruptedException e) {
-            e.printStackTrace();
+            System.exit(0); // TODD add that to headless
         }
 
         System.out.println("Optimization finished");
-
-        // We now zip the folder and wipe everything
-        try {
-            System.out.println("Storing results");
-            storeResults();
-
-            // File directoryToBeDeleted = new File(Sim_App.outpath_results_folder_path + Sim_App.evaluated_scenario_name);
-            // deleteDirectory(directoryToBeDeleted);
-
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
     }
 
     private static Integer getTotalIterations() throws Exception {
