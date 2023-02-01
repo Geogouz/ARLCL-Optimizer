@@ -242,7 +242,7 @@ public class Core {
         fstream.close();
     }
 
-    static void resumeSwarmPositioning() throws Exception {
+    static void resumeSwarmPositioning() {
         SimApp.optimization_running = true;
 
         SimApp.appendToTextArea("Position Estimations:");
@@ -277,7 +277,7 @@ public class Core {
 
             MapField.updateMapExtent();
 
-            publishResultsInGUI(SimApp.cycleCounter, SimApp.stepCounter, currentNode);
+            publishResultsInGUI(SimApp.cycleCounter, SimApp.stepCounter, currentNode, false);
 
             // To use this for debugging whenever needed
 //            if (resetAll_CurrentNodePos_to_TruePos){
@@ -312,7 +312,7 @@ public class Core {
                 MapField.updateMapExtent();
                 // Check whether we are currently at the last step
                 if (last_step){
-                    publishResultsInGUI(SimApp.cycleCounter, SimApp.stepCounter, currentNode);
+                    publishResultsInGUI(SimApp.cycleCounter, SimApp.stepCounter, currentNode, true);
                 }
 
                 // Check whether the requested cycles have been reached.
@@ -331,7 +331,7 @@ public class Core {
         // we should stop nicely the current optimization process as we would do in GUI mode by pressing the Stop
         if (SimApp.optimization_cycles <= SimApp.cycleCounter){
             // Stop the optimization right after the chosen amount of cycles
-            SimApp.stopOptimization();
+//            SimApp.stopOptimization();
 
             // Stop the auto-resumer for the current optimization process
             SimApp.scheduled_auto_resumer.cancel(true);
@@ -349,8 +349,6 @@ public class Core {
         }
 
         SimApp.optimization_running = true;
-
-        SimApp.appendToTextArea("Position Estimations:");
 
         // Check if there is no remaining step from previous unfinished cycles
         if (SimApp.temp_OrderedRemoteNodeIDs.size()==0){
@@ -371,6 +369,8 @@ public class Core {
 
             SimApp.stepCounter = SimApp.stepCounter + 1;
 
+//            System.out.println(SimApp.stepCounter + ", " + SimApp.nodeID_to_nodeObject.size());
+
             Node currentNode = SimApp.nodeID_to_nodeObject.get(SimApp.temp_OrderedRemoteNodeIDs.remove(0));
             //System.out.println("Removing: " + currentNode + " TempList: " + RemoteNodeIDbyPopularity_tracker.size() + " OriginalList: " + NodeIDbyPopularity_originalList.size());
 
@@ -385,8 +385,19 @@ public class Core {
 
             MapField.updateMapExtent();
 
-            // We use the same optimization function to publish the likelihood, before updating the nodes' positions
-            publishResultsInGUI(SimApp.cycleCounter, SimApp.stepCounter, currentNode);
+            // If the auto resumer is activated, rendering a new chart on every step might be too difficult for the GUI
+            if (SimApp.auto_resumer_btn.getState()){
+                // We use the same optimization function to publish the likelihood at the end of a cycle
+                publishResultsInGUI(SimApp.cycleCounter, SimApp.stepCounter, currentNode,
+                        SimApp.stepCounter == SimApp.nodeID_to_nodeObject.size()
+                );
+            }
+            else{
+                // We use the same optimization function to publish the likelihood at the end of a step
+                publishResultsInGUI(SimApp.cycleCounter, SimApp.stepCounter, currentNode,
+                        SimApp.stepCounter == SimApp.nodeID_to_nodeObject.size()
+                );
+            }
 
             // To use this for debugging whenever needed
 //            if (resetAll_CurrentNodePos_to_TruePos){
@@ -398,7 +409,7 @@ public class Core {
             boolean last_step = false;
             int remaining_steps = SimApp.temp_OrderedRemoteNodeIDs.size();
 
-            for (int step = 0; step<remaining_steps; step++){
+            for (int step = 0; step < remaining_steps; step++){
 
                 SimApp.stepCounter = SimApp.stepCounter + 1;
 
@@ -423,8 +434,8 @@ public class Core {
 
                 // Check whether we are currently at the last step
                 if (last_step){
-                    // We use the same optimization function to publish the likelihood, before updating the nodes' positions
-                    publishResultsInGUI(SimApp.cycleCounter, SimApp.stepCounter, currentNode);
+                    // We use the same optimization function to publish the likelihood at the end of a cycle
+                    publishResultsInGUI(SimApp.cycleCounter, SimApp.stepCounter, currentNode, true);
                 }
             }
         }
@@ -434,7 +445,7 @@ public class Core {
         SimApp.appendToTextArea("=========== Optimization Finished ===========");
     }
 
-    static void publishResultsInGUI(int cycle, int step, Node currentNode) {
+    static void publishResultsInGUI(int cycle, int step, Node currentNode, boolean draw_cycle_chart) {
 
         System.out.println("Publishing: " + SimApp.clean_evaluated_scenario_name + " Cycle:" + cycle);
 
@@ -481,6 +492,16 @@ public class Core {
                     mathematica_components_for_plot_sections[0].get(0), NodePos_Plot_filename, "");
         }
 
+        // We draw only the state at the end of a cycle. This limitation is due to the limited drawing speed.
+        if (draw_cycle_chart){
+            drawCycleChart(currentNode);
+        }
+
+        // Export the String to a file
+//        SimApp.writeString2File(NodePos_CMD_filename, NodePos_WolframExportCMD);
+    }
+
+    private static void drawCycleChart(Node currentNode) {
         boolean odd_cycles = SimApp.cycleCounter % 2 != 0;
 
         removeOldChartComponentFromContainer(odd_cycles); // Remove the previous chart's component from the container
@@ -490,19 +511,12 @@ public class Core {
         SimApp.min_cycle_time =  Math.min(
                 SimApp.min_cycle_time, ((System.nanoTime() - SimApp.startTime)/1000000)
         );
-        System.out.println("Lapsed time: " + SimApp.min_cycle_time);
+
+//        System.out.println("Lapsed time: " + SimApp.min_cycle_time);
+
         updateContainer(odd_cycles);
 
-//        swapContainer(target_container);
-//        new_chart_canvas.repaint();
-//        SimApp.app.validate();
-//        SimApp.app.setComponentZOrder(new_chart_canvas, 0);
-
-//        SimApp.app.remove(SimApp.previous_chart_plot_canvas); // Remove the previous canvases and add the new generated one
-//        SimApp.previous_chart_plot_canvas = new_chart_canvas;
-
-        // Export the String to a file
-//        SimApp.writeString2File(NodePos_CMD_filename, NodePos_WolframExportCMD);
+        System.gc();
     }
 
     private static void removeOldChartComponentFromContainer(boolean odd_cycles) {

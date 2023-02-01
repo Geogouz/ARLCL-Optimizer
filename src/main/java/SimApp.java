@@ -140,6 +140,7 @@ public class SimApp extends Frame {
     static CustomCheckbox auto_resumer_btn;
 
     static CustomToggleButton go_Toggle_btn;
+    static CustomButton resume_btn;
     static CustomCheckbox results_per_step_btn;
     static CustomCheckbox results_per_cycle_btn;
     static CustomCheckbox spatial_direction_btn;
@@ -289,63 +290,6 @@ public class SimApp extends Frame {
         System.out.println("Proper exit");
         // At this point we can close the program
         System.exit(0);
-    }
-
-    private static void executeOptimizationJobsInGui() {
-
-        try {
-            Core.init();
-            System.out.println("Start Optimizing");
-            SimApp.go_Toggle_btn.setClicked(true);
-        } catch (Exception e) {
-            e.printStackTrace();
-            // At this point we can close the program
-            System.exit(0);
-        }
-
-        // Wait for almost "infinite" amount of time for the auto resume scheduler to finish.
-        // Then we shall continue with the next iteration
-        try {
-            scheduler.awaitTermination(10000000, SECONDS); // TODO: Hardcoded to be changed
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
-
-        System.out.println("Optimization finished");
-
-        // We now zip the folder and wipe everything
-        try {
-            System.out.println("Storing results");
-            storeResults();
-
-            // File directoryToBeDeleted = new File(Sim_App.outpath_results_folder_path + Sim_App.evaluated_scenario_name);
-            // deleteDirectory(directoryToBeDeleted);
-
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
-
-    private static Integer getTotalIterations() throws Exception {
-        Integer total_iterations = null;
-
-        // Open the file
-        FileInputStream fstream = new FileInputStream(SimApp.input_file_path + SimApp.input_file_extension);
-        BufferedReader br = new BufferedReader(new InputStreamReader(fstream));
-
-        String strLine;
-
-        //Read File Line By Line
-        while ((strLine = br.readLine()) != null){
-            if (strLine.startsWith("#RSS_")){
-                //System.out.println(strLine.replace("#\n", "").replace("#RSS_", ""));
-                total_iterations = Integer.parseInt(strLine.substring(5, strLine.lastIndexOf("#")));
-            }
-        }
-
-        fstream.close();
-
-        return total_iterations;
     }
 
     private static void zipFile(File fileToZip, String fileName, ZipOutputStream zipOut) throws IOException {
@@ -586,9 +530,13 @@ public class SimApp extends Frame {
         SimApp.go_Toggle_btn.addActionListener(new executeOptimizationJobInGuiAdapter());
         SimApp.go_Toggle_btn.setBounds(c1_x, go_Toggle_btn_y, c1_content_width, medium_text_height);
 
+        SimApp.resume_btn = new CustomButton("NEXT");
+        SimApp.resume_btn.addActionListener(new resumeOptimizationJobInGuiAdapter());
+        SimApp.resume_btn.setBounds(c2_x, go_Toggle_btn_y, c1_content_width, medium_text_height);
+
         int auto_resumer_btn_y = go_Toggle_btn_y + medium_text_height + tiny_gap;
         SimApp.auto_resumer_btn = new CustomCheckbox("Auto resume", false, null);
-        SimApp.auto_resumer_btn.setBounds(c1_x + tiny_gap, auto_resumer_btn_y, c1_content_width, small_text_height);
+        SimApp.auto_resumer_btn.setBounds(c2_x + tiny_gap, auto_resumer_btn_y, c2_content_width, small_text_height);
 
         SimApp.go_Toggle_btn.setVisible(false);
         add((JToggleButton) SimApp.go_Toggle_btn.getToggleButton());
@@ -949,34 +897,6 @@ public class SimApp extends Frame {
         }
     }
 
-    static void loadImgToGUI(String last_generated_image_path){
-
-        // Get the last generated IMG result
-        File fileInput = new File(last_generated_image_path);
-
-        System.out.println("Input plot path: " + fileInput);
-
-        BufferedImage last_generated_image;
-        BufferedImage scaledImage = null;
-
-        try {
-            last_generated_image = ImageIO.read(fileInput);
-
-            // Scale the image
-            final int w = last_generated_image.getWidth();
-            final int h = last_generated_image.getHeight();
-            scaledImage = new BufferedImage((int) (w * 0.9),(int) (h * 0.9), BufferedImage.TYPE_INT_ARGB);
-            final AffineTransform at = AffineTransform.getScaleInstance(0.9, 0.9);
-            final AffineTransformOp ato = new AffineTransformOp(at, AffineTransformOp.TYPE_BICUBIC);
-            scaledImage = ato.filter(last_generated_image, scaledImage);
-
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-
-        // todo: mathCanvas.setImage(scaledImage);
-    }
-
     static void appendToTextArea(String text){
         String current_text = SimApp.outputTerminal.getText();
         SimApp.outputTerminal.setText(current_text + text + "\n");
@@ -1004,6 +924,184 @@ public class SimApp extends Frame {
 
         if (!SimApp.headless_mode){
             SimApp.export_ProductLikelihood_WolframPlot_function_btn.setEnabled(enabled);
+        }
+    }
+
+    static private void resume(){
+
+        // Execute everything in a new thread to avoid coming in conflict with the GUI's thread
+        SimApp.t1 = new Thread(() -> {
+            SimApp.go_Toggle_btn.setEnabled(false);
+
+            String results_per_selection;
+            String optimization_order_selection;
+
+            // Get the state of the results_per CustomCheckbox
+            if (SimApp.headless_mode || !SimApp.results_per_step_btn.getState()){
+                results_per_selection = "Cycle";
+            }
+            else{
+                results_per_selection = "Step";
+            }
+
+            // Get the state of the optimization_order CustomCheckbox
+            if (SimApp.headless_mode){
+                optimization_order_selection = "Beliefs-Strength";
+            }
+            else{
+                optimization_order_selection = "Last Cycle's Principal Component Score";
+            }
+
+            // If we are performing an optimization based on Density, we need to mention the utilised parameter
+            String kNN_for_beliefs_strength_check = "\n";
+            if (SimApp.headless_mode){
+                kNN_for_beliefs_strength_check = "\nkNN to consider for the Beliefs-Strength check: " + SimApp.kNearestNeighbours_for_BeliefsStrength_inputTextField.getText() + " Neighbors\n";
+            }
+
+            // If we are exporting also Wolfram features, we need to mention which these are
+            String likelihoods_export = "None]\n";
+            if (SimApp.headless_mode || SimApp.export_ProductLikelihood_WolframPlot_function_btn.getState()){
+                likelihoods_export = "Wolfram Plot]\n";
+            }
+
+            String summary_msg ="\n=========== Optimization Initiated ===========" +
+                    "\nExport folder: " + SimApp.output_iterated_results_folder_path +
+                    "\nMax step-optimization runtime per thread: " + SimApp.max_optimization_time_per_thread_inputTextField.getText() + "ms" +
+                    "\nMin effective measurement value: " + SimApp.min_effective_measurement_inputTextField.getText() + "units" +
+                    "\nftol: " + ftol +
+                    "\nIterations: " + optimization_iterations_per_thread +
+                    "\nResults per: " + results_per_selection +
+                    "\nOptimization order: " + optimization_order_selection +
+                    kNN_for_beliefs_strength_check +
+                    "Likelihoods export: [" + likelihoods_export;
+
+            SimApp.appendToTextArea(summary_msg);
+
+            setPropertiesAsAvailable(false);
+
+            try {
+                System.out.println("Resuming Headless Positioning");
+                Core.resumeSwarmPositioning();
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+
+            setPropertiesAsAvailable(true);
+            SimApp.go_Toggle_btn.setEnabled(true);
+        });
+        SimApp.t1.start();
+    }
+
+    private static void finishOptimization() {
+        changeConfigurationPanelEnabledState(true);
+        SimApp.go_Toggle_btn.setClicked(false);
+        SimApp.go_Toggle_btn.setText("GO");
+    }
+
+    private static void prepareInitializationLog() {
+        String results_per_selection;
+        // Get the state of the results_per_step_btn CustomCheckbox
+        if (SimApp.results_per_step_btn.getState()){
+            results_per_selection = "Step";
+        }
+        else{
+            results_per_selection = "Cycle";
+        }
+
+        String kNN_for_beliefs_strength_check = "\nkNN to consider for the Beliefs-Strength check: " + SimApp.kNearestNeighbours_for_BeliefsStrength_inputTextField.getText() + " Neighbors\n";
+        String likelihoods_export = "None]\n";
+        if (SimApp.export_ProductLikelihood_WolframPlot_function_btn.getState()){
+            likelihoods_export = "Wolfram Plot]\n";
+        }
+        String summary_msg ="\n=========== Optimization Initiated ===========" +
+                "\nExport folder: " + SimApp.output_iterated_results_folder_path +
+                "\nMax step-optimization runtime per thread: " + SimApp.max_optimization_time_per_thread_inputTextField.getText() + "ms" +
+                "\nMin effective measurement value: " + SimApp.min_effective_measurement_inputTextField.getText() + "units" +
+                "\nftol: " + ftol +
+                "\nIterations: " + optimization_iterations_per_thread +
+                "\nResults per: " + results_per_selection +
+                kNN_for_beliefs_strength_check +
+                "Likelihoods export: [" + likelihoods_export;
+
+        SimApp.appendToTextArea(summary_msg);
+    }
+
+    private static void getGuiOptimizationParameters() {
+        // Set user's optimization parameters
+        // Booleans
+        SimApp.results_per_step = SimApp.results_per_step_btn.getState();
+        SimApp.results_per_cycle = SimApp.results_per_cycle_btn.getState();
+        SimApp.ble_model = SimApp.ble_model_btn.getState();
+        SimApp.uwb_model = SimApp.uwb_model_btn.getState();
+        SimApp.export_ProductLikelihood_WolframPlot = SimApp.export_ProductLikelihood_WolframPlot_function_btn.getState();
+        SimApp.plotResolution = Integer.parseInt(SimApp.plotResolution_inputTextField.getText());
+
+        // Values
+        SimApp.min_effective_measurement = Integer.parseInt(SimApp.min_effective_measurement_inputTextField.getText());
+        SimApp.kNearestNeighbours_for_BeliefsStrength = Integer.parseInt(SimApp.kNearestNeighbours_for_BeliefsStrength_inputTextField.getText());
+        SimApp.initial_Map_Extend = Integer.parseInt(SimApp.initial_Map_Extend_inputTextField.getText());
+        SimApp.current_eval_iteration = Integer.parseInt(SimApp.eval_iteration_inputTextField.getText());
+        SimApp.threads = Integer.parseInt(SimApp.threads_inputTextField.getText());
+        SimApp.optimization_iterations_per_thread = Integer.parseInt(SimApp.optimization_iterations_per_thread_inputTextField.getText());
+        SimApp.max_optimization_time_per_thread = Integer.parseInt(SimApp.max_optimization_time_per_thread_inputTextField.getText());
+        SimApp.ftol = Integer.parseInt(SimApp.ftol_inputTextField.getText());
+        SimApp.initial_step_size = Integer.parseInt(SimApp.initial_step_size_inputTextField.getText());
+        SimApp.optimization_cycles = Integer.parseInt(SimApp.optimization_cycles_inputTextField.getText());
+
+        MathEngine.bestLikelihood = Double.NEGATIVE_INFINITY; // POSITIVE_INFINITY // NEGATIVE_INFINITY;
+        MathEngine.swarmPositioningOptimizers = new Optimizer[SimApp.threads];
+
+        SimApp.random.setSeed(Long.parseLong(SimApp.seed_inputTextField.getText()));
+    }
+
+    private static void autoOptimizationResumer() {
+        scheduler = Executors.newScheduledThreadPool(1);
+
+        final Runnable auto_resumer = () -> {
+            //System.out.println("Sim_App.autoResume.getState():" + Sim_App.autoResume.getState() + " Sim_App.autoResume.isEnabled():" + Sim_App.autoResume.isEnabled());
+
+            // Check if the user has just enabled the auto resumer
+            if (SimApp.go_Toggle_btn.isClicked() && SimApp.go_Toggle_btn.isEnabled()){
+                resume();
+            }
+        };
+
+        scheduled_auto_resumer = scheduler.scheduleAtFixedRate(auto_resumer, 0, 100, MILLISECONDS);
+    }
+
+    static boolean ensureFolderExistence(String selected_path){
+        File directory = new File(selected_path);
+        return directory.mkdirs();
+    }
+
+    static boolean deleteDirectory(File directoryToBeEmptied) {
+
+        File[] allContents = directoryToBeEmptied.listFiles();
+        if (allContents != null) {
+            for (File file : allContents) {
+                deleteDirectory(file);
+            }
+        }
+        return directoryToBeEmptied.delete();
+    }
+
+    static void writeString2File(String filename, String data){
+
+//        System.out.println("Data for exporting: " + data);
+
+        try (PrintWriter out = new PrintWriter(filename)) {
+            out.println(data.substring(0, data.lastIndexOf("\n")));
+            // Make a check here to see if the list containing the effective_nodes has the same size as the entire Node db-1
+            // This means that there is no non-Effective Node. Hence, we need to exclude Plot B
+            if (SimApp.effective_remoteNodes.size() == (SimApp.nodeID_to_nodeObject.size()-1)){
+                out.println("Show[model, plotA, plotC]");
+            }
+            else{
+                out.println("Show[model, plotA, plotB, plotC]");
+            }
+
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
         }
     }
 
@@ -1080,6 +1178,135 @@ public class SimApp extends Frame {
         }
     }
 
+    static private class openDBBtnAdapter implements ActionListener {
+        public void actionPerformed(ActionEvent e) {
+            final JFrame frame = new JFrame();
+            frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+            frame.setLayout(new GridLayout(0, 1));
+
+            FileDialog fd = new FileDialog(frame, "Test", FileDialog.LOAD);
+            fd.setVisible(true);
+
+            int dotIndex = fd.getFile().lastIndexOf(".");
+            input_file_extension = fd.getFile().substring(dotIndex);
+
+            SimApp.clean_evaluated_scenario_name = fd.getFile().substring(0, dotIndex);
+
+            SimApp.input_file_path = Paths.get(
+                    fd.getDirectory(),
+                    fd.getFile()
+            ).toString();
+
+            SimApp.outpath_results_folder_path = fd.getDirectory();
+            SimApp.loaded_db_name_LabelArea.setBackground(Color.white);
+            //SimApp.loaded_db_name_LabelArea.setText(SimApp.clean_evaluated_scenario_name + " at " + fd.getDirectory());
+            SimApp.loaded_db_name_LabelArea.setText(SimApp.clean_evaluated_scenario_name);
+            SimApp.go_Toggle_btn.setVisible(true);
+
+            //System.out.println(evaluated_scenario_name + " database in " + input_file_path + " loaded."); // TODO: Add it on terminal
+
+        }
+    }
+
+    static private class resumeOptimizationJobInGuiAdapter implements ActionListener {
+        public void actionPerformed(ActionEvent e) {
+
+        }
+
+    }
+
+    static private class executeOptimizationJobInGuiAdapter implements ActionListener {
+        public void actionPerformed(ActionEvent e) {
+            // This method is only accessible from GUI, where only a single evaluation ID from the loaded DB file can be
+            // executed. This ID is the one that the user set in the panel with the optimization's parameters.
+            if (SimApp.go_Toggle_btn.isClicked()){
+                System.out.println("Starting Cooperative Localization Optimization");
+
+                SimApp.go_Toggle_btn.setText("Stop");
+
+                try {
+                    getGuiOptimizationParameters();
+
+                    // After getting the parameter inputs, disable the panel so that no changes can be made
+                    changeConfigurationPanelEnabledState(false);
+
+                    resetDataStructures();
+                    boolean proceed_with_optimization = directoriesCheck();
+
+                    if (proceed_with_optimization){
+
+                        resetTextArea();
+
+                        // Create a controller thread to run separately from the GUI.
+                        // In headless mode this is not necessary
+                        SimApp.controller_thread = new Thread(() -> {
+                            // Prepare the log about the used optimization's settings
+                            prepareInitializationLog();
+
+                            try {
+                                Core.init();
+                                while (!SimApp.stop_optimization){
+                                    if (SimApp.auto_resumer_btn.getState()){
+                                        startTime = System.nanoTime();
+                                        Core.resumeSwarmPositioningInGUIMode();
+                                    }
+                                    else{
+                                        Thread.sleep(1000);
+                                    }
+                                }
+                                finishOptimization();
+                            } catch (Exception ex) {
+                                ex.printStackTrace();
+                                throw new RuntimeException(ex);
+                            }
+                        });
+                        SimApp.controller_thread.start();
+                    }
+
+                    // Initiate the automated resumer
+                    //autoOptimizationResumer();
+
+                    // Proceed or not with current iteration depending on the existence of previous results
+//                    if (!proceed_with_optimization){
+//                        // Stop the auto-resumer for the current optimization process
+//                        SimApp.scheduled_auto_resumer.cancel(true);
+//                        SimApp.scheduler.shutdown();
+//                    }
+
+                    //resume();
+                    //executeOptimizationJobsInGui();
+
+                } catch (Exception ex) {
+                    ex.printStackTrace();
+                    StackTraceElement[] stackTraceElements = ex.getStackTrace();
+                    for (StackTraceElement ste: stackTraceElements) {
+                        SimApp.appendToTextArea(ste.toString());
+                    }
+                    SimApp.appendToTextArea(ex.toString());
+                }
+            }
+            else {
+                // Being here means that the user clicked to stop the optimization
+//                System.out.println("Stopping Optimization");
+                SimApp.appendToTextArea("Force stop at: " + SimApp.day_formatter.format(new Date()));
+                SimApp.stop_optimization = true;
+            }
+        }
+    }
+
+    static private class clearTerminalBtnAdapter implements ActionListener {
+        public void actionPerformed(ActionEvent e) {
+            SimApp.outputTerminal.setText("");
+        }
+    }
+
+    class WnAdapter extends WindowAdapter {
+        public void windowClosing(WindowEvent event) {
+            dispose();
+            System.exit(0);
+        }
+    }
+
     // This listener ensures an Arithmetic text of less than 500 value
     static private class plotResolutionInputTextAreaEnsurer implements TextListener {
         public void textValueChanged(TextEvent evt) {
@@ -1140,272 +1367,44 @@ public class SimApp extends Frame {
         }
     }
 
-    static private class openDBBtnAdapter implements ActionListener {
+    static private class stopBtnAdapter implements ActionListener {
         public void actionPerformed(ActionEvent e) {
-            final JFrame frame = new JFrame();
-            frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-            frame.setLayout(new GridLayout(0, 1));
-
-            FileDialog fd = new FileDialog(frame, "Test", FileDialog.LOAD);
-            fd.setVisible(true);
-
-            int dotIndex = fd.getFile().lastIndexOf(".");
-            input_file_extension = fd.getFile().substring(dotIndex);
-
-            SimApp.clean_evaluated_scenario_name = fd.getFile().substring(0, dotIndex);
-
-            SimApp.input_file_path = Paths.get(
-                    fd.getDirectory(),
-                    fd.getFile()
-            ).toString();
-
-            SimApp.outpath_results_folder_path = fd.getDirectory();
-            SimApp.loaded_db_name_LabelArea.setBackground(Color.white);
-            //SimApp.loaded_db_name_LabelArea.setText(SimApp.clean_evaluated_scenario_name + " at " + fd.getDirectory());
-            SimApp.loaded_db_name_LabelArea.setText(SimApp.clean_evaluated_scenario_name);
-            SimApp.go_Toggle_btn.setVisible(true);
-
-            //System.out.println(evaluated_scenario_name + " database in " + input_file_path + " loaded."); // TODO: Add it on terminal
-
+//            stopOptimization();
         }
-    }
-
-    static private class executeOptimizationJobInGuiAdapter implements ActionListener {
-        public void actionPerformed(ActionEvent e) {
-            // This method is only accessible from GUI, where only a single evaluation ID from the loaded DB file can be
-            // executed. This ID is the one that the user set in the panel with the optimization's parameters.
-            if (SimApp.go_Toggle_btn.isClicked()){
-                System.out.println("Starting Cooperative Localization Optimization");
-
-                SimApp.go_Toggle_btn.setText("Stop");
-
-                try {
-                    getGuiOptimizationParameters();
-
-                    // After getting the parameter inputs, disable the panel so that no changes can be made
-                    changeConfigurationPanelEnabledState(false);
-
-                    resetDataStructures();
-                    boolean proceed_with_optimization = directoriesCheck();
-
-                    if (proceed_with_optimization){
-
-                        resetTextArea();
-
-                        // Create a controller thread to run separately from the GUI.
-                        // In headless mode this is not necessary
-                        SimApp.controller_thread = new Thread(() -> {
-                            // Prepare the log about the used optimization's settings
-                            prepareInitializationLog();
-
-                            try {
-                                Core.init();
-                                while (!SimApp.stop_optimization){
-                                    startTime = System.nanoTime();
-                                    Core.resumeSwarmPositioningInGUIMode();
-                                }
-
-                            } catch (Exception ex) {
-                                throw new RuntimeException(ex);
-                            }
-                        });
-                        SimApp.controller_thread.start();
-                    }
-
-                    // Initiate the automated resumer
-                    //autoOptimizationResumer();
-
-                    // Proceed or not with current iteration depending on the existence of previous results
-//                    if (!proceed_with_optimization){
-//                        // Stop the auto-resumer for the current optimization process
-//                        SimApp.scheduled_auto_resumer.cancel(true);
-//                        SimApp.scheduler.shutdown();
-//                    }
-
-                    //resume();
-
-
-                    //executeOptimizationJobsInGui();
-
-
-
-                } catch (Exception ex) {
-                    ex.printStackTrace();
-                    StackTraceElement[] stackTraceElements = ex.getStackTrace();
-                    for (StackTraceElement ste: stackTraceElements) {
-                        SimApp.appendToTextArea(ste.toString());
-                    }
-                    SimApp.appendToTextArea(ex.toString());
-                }
-            }
-            else {
-                System.out.println("Stopping Optimization");
-                SimApp.stop_optimization = true;
-                SimApp.go_Toggle_btn.setText("GO");
-            }
-        }
-
-        private void prepareInitializationLog() {
-            String results_per_selection;
-            // Get the state of the results_per_step_btn CustomCheckbox
-            if (SimApp.results_per_step_btn.getState()){
-                results_per_selection = "Step";
-            }
-            else{
-                results_per_selection = "Cycle";
-            }
-
-            String kNN_for_beliefs_strength_check = "\nkNN to consider for the Beliefs-Strength check: " + SimApp.kNearestNeighbours_for_BeliefsStrength_inputTextField.getText() + " Neighbors\n";
-            String likelihoods_export = "None]\n";
-            if (SimApp.export_ProductLikelihood_WolframPlot_function_btn.getState()){
-                likelihoods_export = "Wolfram Plot]\n";
-            }
-            String summary_msg ="\n=========== Optimization Initiated ===========" +
-                    "\nExport folder: " + SimApp.output_iterated_results_folder_path +
-                    "\nMax step-optimization runtime per thread: " + SimApp.max_optimization_time_per_thread_inputTextField.getText() + "ms" +
-                    "\nMin effective measurement value: " + SimApp.min_effective_measurement_inputTextField.getText() + "units" +
-                    "\nftol: " + ftol +
-                    "\nIterations: " + optimization_iterations_per_thread +
-                    "\nResults per: " + results_per_selection +
-                    kNN_for_beliefs_strength_check +
-                    "Likelihoods export: [" + likelihoods_export;
-
-            appendToTextArea(summary_msg);
-        }
-
-        private void getGuiOptimizationParameters() {
-            // Set user's optimization parameters
-            // Booleans
-            SimApp.results_per_step = SimApp.results_per_step_btn.getState();
-            SimApp.results_per_cycle = SimApp.results_per_cycle_btn.getState();
-            SimApp.ble_model = SimApp.ble_model_btn.getState();
-            SimApp.uwb_model = SimApp.uwb_model_btn.getState();
-            SimApp.export_ProductLikelihood_WolframPlot = SimApp.export_ProductLikelihood_WolframPlot_function_btn.getState();
-            SimApp.plotResolution = Integer.parseInt(SimApp.plotResolution_inputTextField.getText());
-
-            // Values
-            SimApp.min_effective_measurement = Integer.parseInt(SimApp.min_effective_measurement_inputTextField.getText());
-            SimApp.kNearestNeighbours_for_BeliefsStrength = Integer.parseInt(SimApp.kNearestNeighbours_for_BeliefsStrength_inputTextField.getText());
-            SimApp.initial_Map_Extend = Integer.parseInt(SimApp.initial_Map_Extend_inputTextField.getText());
-            SimApp.current_eval_iteration = Integer.parseInt(SimApp.eval_iteration_inputTextField.getText());
-            SimApp.threads = Integer.parseInt(SimApp.threads_inputTextField.getText());
-            SimApp.optimization_iterations_per_thread = Integer.parseInt(SimApp.optimization_iterations_per_thread_inputTextField.getText());
-            SimApp.max_optimization_time_per_thread = Integer.parseInt(SimApp.max_optimization_time_per_thread_inputTextField.getText());
-            SimApp.ftol = Integer.parseInt(SimApp.ftol_inputTextField.getText());
-            SimApp.initial_step_size = Integer.parseInt(SimApp.initial_step_size_inputTextField.getText());
-            SimApp.optimization_cycles = Integer.parseInt(SimApp.optimization_cycles_inputTextField.getText());
-
-            MathEngine.bestLikelihood = Double.NEGATIVE_INFINITY; // POSITIVE_INFINITY // NEGATIVE_INFINITY;
-            MathEngine.swarmPositioningOptimizers = new Optimizer[SimApp.threads];
-
-            SimApp.random.setSeed(Long.parseLong(SimApp.seed_inputTextField.getText()));
-        }
-    }
-
-    static private class clearTerminalBtnAdapter implements ActionListener {
-        public void actionPerformed(ActionEvent e) {
-            SimApp.outputTerminal.setText("");
-        }
-    }
-
-    static private void resume(){
-
-        // Execute everything in a new thread to avoid coming in conflict with the GUI's thread
-        SimApp.t1 = new Thread(() -> {
-            SimApp.go_Toggle_btn.setEnabled(false);
-
-            String results_per_selection;
-            String optimization_order_selection;
-
-            // Get the state of the results_per CustomCheckbox
-            if (SimApp.headless_mode || !SimApp.results_per_step_btn.getState()){
-                results_per_selection = "Cycle";
-            }
-            else{
-                results_per_selection = "Step";
-            }
-
-            // Get the state of the optimization_order CustomCheckbox
-            if (SimApp.headless_mode){
-                optimization_order_selection = "Beliefs-Strength";
-            }
-            else{
-                optimization_order_selection = "Last Cycle's Principal Component Score";
-            }
-
-            // If we are performing an optimization based on Density, we need to mention the utilised parameter
-            String kNN_for_beliefs_strength_check = "\n";
-            if (SimApp.headless_mode){
-                kNN_for_beliefs_strength_check = "\nkNN to consider for the Beliefs-Strength check: " + SimApp.kNearestNeighbours_for_BeliefsStrength_inputTextField.getText() + " Neighbors\n";
-            }
-
-            // If we are exporting also Wolfram features, we need to mention which these are
-            String likelihoods_export = "None]\n";
-            if (SimApp.headless_mode || SimApp.export_ProductLikelihood_WolframPlot_function_btn.getState()){
-                likelihoods_export = "Wolfram Plot]\n";
-            }
-
-            String summary_msg ="\n=========== Optimization Initiated ===========" +
-                    "\nExport folder: " + SimApp.output_iterated_results_folder_path +
-                    "\nMax step-optimization runtime per thread: " + SimApp.max_optimization_time_per_thread_inputTextField.getText() + "ms" +
-                    "\nMin effective measurement value: " + SimApp.min_effective_measurement_inputTextField.getText() + "units" +
-                    "\nftol: " + ftol +
-                    "\nIterations: " + optimization_iterations_per_thread +
-                    "\nResults per: " + results_per_selection +
-                    "\nOptimization order: " + optimization_order_selection +
-                    kNN_for_beliefs_strength_check +
-                    "Likelihoods export: [" + likelihoods_export;
-
-            appendToTextArea(summary_msg);
-
-            setPropertiesAsAvailable(false);
-
-            try {
-                System.out.println("Resuming Headless Positioning");
-                Core.resumeSwarmPositioning();
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
-
-            setPropertiesAsAvailable(true);
-            SimApp.go_Toggle_btn.setEnabled(true);
-        });
-        SimApp.t1.start();
     }
 
     // Keep in mind that when the user requests from the optimization to cancel, he needs to wait for some time until
     // the optimization reaches the point where stopping flag is checked
-    static void stopOptimization(){
-        SimApp.go_Toggle_btn.setClicked(false);
+    private static void stopOptimization(){
+//        SimApp.go_Toggle_btn.setClicked(false);
 
-        Date date = new Date();
+//        Date date = new Date();
 
-        appendToTextArea("Force stop at: " + SimApp.day_formatter.format(date));
+//        appendToTextArea("Force stop at: " + SimApp.day_formatter.format(date));
 
         // Interrupt all the Optimizers
-        for (Optimizer optimizer: MathEngine.swarmPositioningOptimizers){
-            optimizer.interrupt();
-        }
+//        for (Optimizer optimizer: MathEngine.swarmPositioningOptimizers){
+//            optimizer.interrupt();
+//        }
 
         // Interrupt also the Optimizer Handler
-        SimApp.t1.interrupt();
+//        SimApp.t1.interrupt();
 
         // In case we are in-between a likelihood export process, cancel it
-        if (SimApp.rendering_wolfram_data){
-            // Todo cancel any future possible rendering
-        }
+//        if (SimApp.rendering_wolfram_data){
+//        }
 
-        while (true){
-            // Make the loop break for a bit to not suffocate the thread while waiting
-            try {
-                Thread.sleep(100);
-            } catch (InterruptedException ignore) {}
-            // Wait until the optimization has been stopped
-            if(!SimApp.optimization_running){
-                setPropertiesAsAvailable(true);
-                break;
-            }
-        }
+//        while (true){
+//            // Make the loop break for a bit to not suffocate the thread while waiting
+//            try {
+//                Thread.sleep(100);
+//            } catch (InterruptedException ignore) {}
+//            // Wait until the optimization has been stopped
+//            if(!SimApp.optimization_running){
+//                setPropertiesAsAvailable(true);
+//                break;
+//            }
+//        }
 
 //        if (MathEngine.NodePos_Results_filename != null){
 //            // Dump all results in a log file
@@ -1423,67 +1422,88 @@ public class SimApp extends Frame {
 //        }
     }
 
-    static private class stopBtnAdapter implements ActionListener {
-        public void actionPerformed(ActionEvent e) {
-            stopOptimization();
-        }
-    }
+    private static void loadImgToGUI(String last_generated_image_path){
 
-    class WnAdapter extends WindowAdapter {
-        public void windowClosing(WindowEvent event) {
-            dispose();
-            System.exit(0);
-        }
-    }
+        // Get the last generated IMG result
+        File fileInput = new File(last_generated_image_path);
 
-    private static void autoOptimizationResumer() {
-        scheduler = Executors.newScheduledThreadPool(1);
+        System.out.println("Input plot path: " + fileInput);
 
-        final Runnable auto_resumer = () -> {
-            //System.out.println("Sim_App.autoResume.getState():" + Sim_App.autoResume.getState() + " Sim_App.autoResume.isEnabled():" + Sim_App.autoResume.isEnabled());
+        BufferedImage last_generated_image;
+        BufferedImage scaledImage = null;
 
-            // Check if the user has just enabled the auto resumer
-            if (SimApp.go_Toggle_btn.isClicked() && SimApp.go_Toggle_btn.isEnabled()){
-                resume();
-            }
-        };
+        try {
+            last_generated_image = ImageIO.read(fileInput);
 
-        scheduled_auto_resumer = scheduler.scheduleAtFixedRate(auto_resumer, 0, 100, MILLISECONDS);
-    }
+            // Scale the image
+            final int w = last_generated_image.getWidth();
+            final int h = last_generated_image.getHeight();
+            scaledImage = new BufferedImage((int) (w * 0.9),(int) (h * 0.9), BufferedImage.TYPE_INT_ARGB);
+            final AffineTransform at = AffineTransform.getScaleInstance(0.9, 0.9);
+            final AffineTransformOp ato = new AffineTransformOp(at, AffineTransformOp.TYPE_BICUBIC);
+            scaledImage = ato.filter(last_generated_image, scaledImage);
 
-    static boolean ensureFolderExistence(String selected_path){
-        File directory = new File(selected_path);
-        return directory.mkdirs();
-    }
-
-    static boolean deleteDirectory(File directoryToBeEmptied) {
-
-        File[] allContents = directoryToBeEmptied.listFiles();
-        if (allContents != null) {
-            for (File file : allContents) {
-                deleteDirectory(file);
-            }
-        }
-        return directoryToBeEmptied.delete();
-    }
-
-    static void writeString2File(String filename, String data){
-
-//        System.out.println("Data for exporting: " + data);
-
-        try (PrintWriter out = new PrintWriter(filename)) {
-            out.println(data.substring(0, data.lastIndexOf("\n")));
-            // Make a check here to see if the list containing the effective_nodes has the same size as the entire Node db-1
-            // This means that there is no non-Effective Node. Hence, we need to exclude Plot B
-            if (SimApp.effective_remoteNodes.size() == (SimApp.nodeID_to_nodeObject.size()-1)){
-                out.println("Show[model, plotA, plotC]");
-            }
-            else{
-                out.println("Show[model, plotA, plotB, plotC]");
-            }
-
-        } catch (FileNotFoundException e) {
+        } catch (IOException e) {
             e.printStackTrace();
         }
+
+        // todo: mathCanvas.setImage(scaledImage);
+    }
+
+    private static void executeOptimizationJobsInGui() {
+
+        try {
+            Core.init();
+            System.out.println("Start Optimizing");
+            SimApp.go_Toggle_btn.setClicked(true);
+        } catch (Exception e) {
+            e.printStackTrace();
+            // At this point we can close the program
+            System.exit(0);
+        }
+
+        // Wait for almost "infinite" amount of time for the auto resume scheduler to finish.
+        // Then we shall continue with the next iteration
+        try {
+            scheduler.awaitTermination(10000000, SECONDS); // TODO: Hardcoded to be changed
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+
+        System.out.println("Optimization finished");
+
+        // We now zip the folder and wipe everything
+        try {
+            System.out.println("Storing results");
+            storeResults();
+
+            // File directoryToBeDeleted = new File(Sim_App.outpath_results_folder_path + Sim_App.evaluated_scenario_name);
+            // deleteDirectory(directoryToBeDeleted);
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    private static Integer getTotalIterations() throws Exception {
+        Integer total_iterations = null;
+
+        // Open the file
+        FileInputStream fstream = new FileInputStream(SimApp.input_file_path + SimApp.input_file_extension);
+        BufferedReader br = new BufferedReader(new InputStreamReader(fstream));
+
+        String strLine;
+
+        //Read File Line By Line
+        while ((strLine = br.readLine()) != null){
+            if (strLine.startsWith("#RSS_")){
+                //System.out.println(strLine.replace("#\n", "").replace("#RSS_", ""));
+                total_iterations = Integer.parseInt(strLine.substring(5, strLine.lastIndexOf("#")));
+            }
+        }
+
+        fstream.close();
+
+        return total_iterations;
     }
 }

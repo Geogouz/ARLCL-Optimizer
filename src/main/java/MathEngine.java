@@ -285,48 +285,45 @@ class Optimizer extends Thread {
     }
 
     public void run() {
-        final long start_time = System.currentTimeMillis();
-        final long stop_time = start_time + optimization_time;
+        final long force_stop_time = System.currentTimeMillis() + optimization_time;
 
-        // This check can be used to set a time constraint for the optimization
-        while (System.currentTimeMillis() < stop_time) {
+        for (int optimization_iteration = 0; optimization_iteration< SimApp.optimization_iterations_per_thread; optimization_iteration++){
 
-            for (int optimization_iteration = 0; optimization_iteration< SimApp.optimization_iterations_per_thread; optimization_iteration++){
-
-                double randomX = MapField.global_minPlotX + SimApp.random.nextDouble() * (MapField.global_maxPlotX - MapField.global_minPlotX);
-                double randomY = MapField.global_minPlotY + SimApp.random.nextDouble() * (MapField.global_maxPlotY - MapField.global_minPlotY);
-
-                //System.out.println(randomX + ", " + randomY);
-
-                // As initial estimates use Node's current position
-                //double[] start = {currentNode.current_relative_x, currentNode.current_relative_y};
-                double[] start = {randomX, randomY};
-
-                // initial step sizes
-                double[] step = {initial_step_size, initial_step_size};
-
-                // convergence tolerance
-                double ftol = SimApp.ftol;
-
-                // Nelder and Mead optimization procedure
-                NodePosMax.nelderMead(position_likelihood, start, step, ftol);
-
-                if (optimal_probability < NodePosMax.getMaximum()) { // > NodePosMax.getMinimum()) {
-                    optimal_probability = NodePosMax.getMaximum(); // NodePosMax.getMinimum();
-                    best_params = NodePosMax.getParamValues();
-
-                    //System.out.println("Iteration: " + optimization_iteration + ": " + optimal_probability);
-
-                    //if (optimization_iteration>200){
-                    //    System.out.println(highest_probability + " " + Arrays.toString(NodePosMax.getParamValues()) + " {" + optimization_iteration + "}");
-                    //}
-                }
+            // Check whether we are out of time
+            if (System.currentTimeMillis() > force_stop_time){
+                SimApp.appendToTextArea("Max optimization time per thread reached.");
+                break;
             }
 
-            //System.out.println("Final: " + highest_probability + " " + Arrays.toString(best_params) + "\n");
+            double randomX = MapField.global_minPlotX + SimApp.random.nextDouble() * (MapField.global_maxPlotX - MapField.global_minPlotX);
+            double randomY = MapField.global_minPlotY + SimApp.random.nextDouble() * (MapField.global_maxPlotY - MapField.global_minPlotY);
 
-            // Todo we need to make this optional for the user to be able to use the other mode
-            break;
+            //System.out.println(randomX + ", " + randomY);
+
+            // As initial estimates use Node's current position
+            //double[] start = {currentNode.current_relative_x, currentNode.current_relative_y};
+            double[] start = {randomX, randomY};
+
+            // initial step sizes
+            double[] step = {initial_step_size, initial_step_size};
+
+            // convergence tolerance
+            double ftol = SimApp.ftol;
+
+            // Nelder and Mead optimization procedure
+            NodePosMax.nelderMead(position_likelihood, start, step, ftol);
+
+            if (optimal_probability < NodePosMax.getMaximum()) { // > NodePosMax.getMinimum()) {
+                optimal_probability = NodePosMax.getMaximum(); // NodePosMax.getMinimum();
+                best_params = NodePosMax.getParamValues();
+
+                //System.out.println("Iteration: " + optimization_iteration + ": " + optimal_probability);
+
+                //if (optimization_iteration>200){
+                //    System.out.println(highest_probability + " " + Arrays.toString(NodePosMax.getParamValues()) + " {" + optimization_iteration + "}");
+                //}
+            }
         }
+        //System.out.println("Final: " + highest_probability + " " + Arrays.toString(best_params) + "\n");
     }
 }
