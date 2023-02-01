@@ -43,7 +43,6 @@ public class SimApp extends Frame {
     static boolean ble_model;
     static boolean uwb_model;
     static boolean export_ProductLikelihood_WolframPlot;
-    static boolean optimization_running;
     static boolean stop_optimization;
     static boolean resume_flag;
     static int plotResolution;
@@ -120,7 +119,6 @@ public class SimApp extends Frame {
     static CustomButton resume_btn;
     static CustomCheckbox results_per_step_btn;
     static CustomCheckbox results_per_cycle_btn;
-    static CustomCheckbox spatial_direction_btn;
     static CustomCheckbox ble_model_btn;
     static CustomCheckbox uwb_model_btn;
     static CustomCheckbox export_ProductLikelihood_WolframPlot_function_btn;
@@ -341,7 +339,6 @@ public class SimApp extends Frame {
         SimApp.temp_OrderedRemoteNodeIDs = new ArrayList<>();
         SimApp.OrderedByLastCycleOrientation_NodeIDs = new ArrayList<>();
 
-        SimApp.optimization_running = false;
         SimApp.stop_optimization = false;
     }
 
@@ -940,7 +937,7 @@ public class SimApp extends Frame {
             // If we are performing an optimization based on Density, we need to mention the utilised parameter
             String kNN_for_beliefs_strength_check = "\n";
             if (SimApp.headless_mode){
-                kNN_for_beliefs_strength_check = "\nkNN to consider for the Beliefs-Strength check: " + SimApp.kNearestNeighbours_for_BeliefsStrength_inputTextField.getText() + " Neighbors\n";
+                kNN_for_beliefs_strength_check = "\nkNN to consider for the Beliefs-Strength check: " + SimApp.kNearestNeighbours_for_BeliefsStrength + " Neighbors\n";
             }
 
             // If we are exporting also Wolfram features, we need to mention which these are
@@ -953,7 +950,7 @@ public class SimApp extends Frame {
                     "\nExport folder: " + SimApp.output_iteration_results_folder_path +
                     "\nScenario: " + SimApp.clean_evaluated_scenario_name +
                     "\nEvaluated iteration in scenario: " + SimApp.evaluated_iteration +
-                    "\nMin effective measurement value: " + SimApp.min_effective_measurement_inputTextField.getText() + "units" +
+                    "\nMin effective measurement value: " + SimApp.min_effective_measurement + "units" +
                     "\nExtent of positions initialization: " +  SimApp.initial_Map_Extend +
                     "\nRandom seed: " +  SimApp.seed +
                     "\nThread workers: " +  SimApp.threads +
@@ -1002,7 +999,7 @@ public class SimApp extends Frame {
             results_per_selection = "Cycle";
         }
 
-        String kNN_for_beliefs_strength_check = "\nkNN to consider for the Beliefs-Strength check: " + SimApp.kNearestNeighbours_for_BeliefsStrength_inputTextField.getText() + " Neighbors\n";
+        String kNN_for_beliefs_strength_check = "\nkNN to consider for the Beliefs-Strength check: " + SimApp.kNearestNeighbours_for_BeliefsStrength + " Neighbors\n";
         String likelihoods_export = "None]\n";
         if (SimApp.export_ProductLikelihood_WolframPlot_function_btn.getState()){
             likelihoods_export = "Wolfram Plot]\n";
@@ -1011,7 +1008,7 @@ public class SimApp extends Frame {
                 "\nExport folder: " + SimApp.output_iteration_results_folder_path +
                 "\nScenario: " + SimApp.clean_evaluated_scenario_name +
                 "\nEvaluated iteration in scenario: " + SimApp.evaluated_iteration +
-                "\nMin effective measurement value: " + SimApp.min_effective_measurement_inputTextField.getText() + "units" +
+                "\nMin effective measurement value: " + SimApp.min_effective_measurement + "units" +
                 "\nExtent of positions initialization: " +  SimApp.initial_Map_Extend +
                 "\nRandom seed: " +  SimApp.seed +
                 "\nThread workers: " +  SimApp.threads +

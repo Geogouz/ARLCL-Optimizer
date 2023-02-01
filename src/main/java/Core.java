@@ -59,9 +59,9 @@ public class Core {
             double measurement_value = entry.getValue();
 
             // Ignore all measurement values that are not described by our model
-            // System.out.println("Checking if measurement " + measurement_value + " between remote Node " + remoteNode + " and current Node " + currentNode.id + " is at least " + SimApp.min_effective_measurement_inputTextField.getText());
+            // System.out.println("Checking if measurement " + measurement_value + " between remote Node " + remoteNode + " and current Node " + currentNode.id + " is at least " + SimApp.min_effective_measurement);
 
-            if ((measurement_value <= Integer.parseInt(SimApp.min_effective_measurement_inputTextField.getText()))
+            if ((measurement_value <= SimApp.min_effective_measurement)
                     && (remoteNode != currentNode.id)) {
                 SimApp.effective_remoteNodes.add(remoteNode);
 
@@ -87,11 +87,8 @@ public class Core {
             // Keep only the 5 strongest signals
             Collections.sort(measurement_values_list);
 
-            int considered_kNearestNeigbors_for_ClosenessCheck = Integer.parseInt(
-                    SimApp.kNearestNeighbours_for_BeliefsStrength_inputTextField.getText());
-
-            if (measurement_values_list.size() > considered_kNearestNeigbors_for_ClosenessCheck){
-                node_popularity.put(current_NodeID, getAverage(measurement_values_list.subList(0, considered_kNearestNeigbors_for_ClosenessCheck)));
+            if (measurement_values_list.size() > SimApp.kNearestNeighbours_for_BeliefsStrength){
+                node_popularity.put(current_NodeID, getAverage(measurement_values_list.subList(0, SimApp.kNearestNeighbours_for_BeliefsStrength)));
             }
             else {
                 node_popularity.put(current_NodeID, getAverage(measurement_values_list));
@@ -106,7 +103,7 @@ public class Core {
                 .sorted(HashMap.Entry.comparingByValue())
                 .forEachOrdered(x -> SimApp.OrderedByBeliefsStrength_NodeIDs.add(x.getKey()));
 
-//        System.out.println(Sim_App.OrderedByBeliefsStrength_NodeIDs);
+//        System.out.println(SimApp.OrderedByBeliefsStrength_NodeIDs);
     }
 
     static private double getAverage(List <Double> items) {
@@ -240,7 +237,6 @@ public class Core {
     }
 
     static void resumeSwarmPositioning() {
-        SimApp.optimization_running = true;
 
         SimApp.appendToTextArea("Position Estimations:");
 
@@ -289,6 +285,7 @@ public class Core {
             int remaining_steps = SimApp.temp_OrderedRemoteNodeIDs.size();
 
             for (int step = 0; step<remaining_steps; step++){
+
                 SimApp.stepCounter = SimApp.stepCounter + 1;
 
                 int currentNodeID = SimApp.temp_OrderedRemoteNodeIDs.remove(0);
@@ -309,8 +306,10 @@ public class Core {
                 }
 
                 MapField.updateMapExtent();
+
                 // Check whether we are currently at the last step
                 if (last_step){
+                    // We use the same optimization function to publish the likelihood at the end of a cycle
                     publishResultsInGUI(
                             SimApp.cycleCounter, SimApp.stepCounter, currentNode,
                             true, SimApp.export_ProductLikelihood_WolframPlot);
@@ -324,7 +323,6 @@ public class Core {
             }
         }
 
-        SimApp.optimization_running = false;
         SimApp.appendToTextArea("Map Extent: (" + MapField.global_minPlotX + ", " + MapField.global_maxPlotX + "), (" + MapField.global_minPlotY + ", " + MapField.global_maxPlotY + ")");
         SimApp.appendToTextArea("=========== Optimization Finished ===========");
 
@@ -356,13 +354,11 @@ public class Core {
             return;
         }
 
-        SimApp.optimization_running = true;
-
         // Check if there is no remaining step from previous unfinished cycles
         if (SimApp.temp_OrderedRemoteNodeIDs.size()==0){
 
             // When in GUI mode, we can align the swarm based on a principal spatial variation for better visualization
-            // MathEngine.align_Swarm();
+//             MathEngine.align_Swarm();
 
             // We start a new Cycle. At this point, sortNodesByBeliefsStrength() has already ordered the nodes.
             SimApp.temp_OrderedRemoteNodeIDs.addAll(SimApp.OrderedByBeliefsStrength_NodeIDs);
@@ -378,8 +374,6 @@ public class Core {
             SimApp.stepCounter = SimApp.stepCounter + 1;
             boolean cycle_end = SimApp.stepCounter == SimApp.nodeID_to_nodeObject.size();
             boolean export_plot = SimApp.export_ProductLikelihood_WolframPlot && cycle_end;
-
-//            System.out.println(SimApp.stepCounter + ", " + SimApp.nodeID_to_nodeObject.size());
 
             Node currentNode = SimApp.nodeID_to_nodeObject.get(SimApp.temp_OrderedRemoteNodeIDs.remove(0));
             //System.out.println("Removing: " + currentNode + " TempList: " + RemoteNodeIDbyPopularity_tracker.size() + " OriginalList: " + NodeIDbyPopularity_originalList.size());
@@ -450,7 +444,6 @@ public class Core {
             }
         }
 
-        SimApp.optimization_running = false;
         SimApp.appendToTextArea("Map Extent: (" + MapField.global_minPlotX + ", " + MapField.global_maxPlotX + "), (" + MapField.global_minPlotY + ", " + MapField.global_maxPlotY + ")");
         SimApp.appendToTextArea("=========== Optimization Finished ===========");
     }
