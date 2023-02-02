@@ -828,7 +828,7 @@ public class Core {
                 "FrameTicksStyle -> Directive[Black, 15]," +
                 "GridLines -> Automatic," +
                 "GridLinesStyle -> Directive[AbsoluteThickness[0.5], Black]," +
-                "Contours -> {Automatic, 10}];\n\n";
+                "Contours -> {Automatic, " + SimApp.plotResolution + "}];\n\n";
 
         return plot_cmd;
     }

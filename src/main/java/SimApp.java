@@ -578,7 +578,7 @@ public class SimApp extends Frame {
 
 
         final int eval_iteration_LabelArea_y = seed_LabelArea_y + small_text_height;
-        SimApp.evaluated_iteration_LabelArea = new CustomTextArea("Iteration in scenario to evaluate [1,+]:",1,1, TextArea.SCROLLBARS_NONE);
+        SimApp.evaluated_iteration_LabelArea = new CustomTextArea("Iteration in scenario to evaluate [0,+]:",1,1, TextArea.SCROLLBARS_NONE);
         SimApp.evaluated_iteration_LabelArea.setBounds(c3_x, eval_iteration_LabelArea_y, c3_content_width, small_text_height);
         SimApp.evaluated_iteration_LabelArea.setBackground(Color.lightGray);
         SimApp.evaluated_iteration_LabelArea.setEnabled(true);
