@@ -926,7 +926,7 @@ public class Core {
                         "   AspectRatio -> Automatic,\n" +
                         "   PlotStyle -> Opacity[1, Green],\n" +
                         "   Background -> Transparent,\n" +
-                        "   PlotMarkers -> {Automatic, 30},\n" +
+                        "   PlotMarkers -> {{Graphics@{Green, Disk[]} , 20}},\n" +
                         "   PlotRange -> {{" +
                         MapField.global_minPlotX + ", " +
                         MapField.global_maxPlotX + "}, {" +
@@ -947,7 +947,7 @@ public class Core {
                 "   AspectRatio -> Automatic,\n" +
                 "   PlotStyle -> Opacity[1, Yellow],\n" +
                 "   Background -> Transparent,\n" +
-                "   PlotMarkers -> {Automatic, 25},\n" +
+                "   PlotMarkers -> {{Graphics@{Yellow, Disk[]} , 20}},\n" +
                 "   PlotRange -> {{" +
                 MapField.global_minPlotX + ", " +
                 MapField.global_maxPlotX + "}, {" +
@@ -965,7 +965,7 @@ public class Core {
                 "   AspectRatio -> Automatic,\n" +
                 "   PlotStyle -> Opacity[1, Orange],\n" +
                 "   Background -> Transparent,\n" +
-                "   PlotMarkers -> {Automatic, 25},\n" +
+                "   PlotMarkers -> {{Graphics@{Orange, Disk[]} , 20}},\n" +
                 "   PlotRange -> {{" +
                 MapField.global_minPlotX + ", " +
                 MapField.global_maxPlotX + "}, {" +
