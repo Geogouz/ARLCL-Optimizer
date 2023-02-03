@@ -56,7 +56,7 @@ public class SimApp extends Frame {
     static int max_optimization_time_per_thread;
     static double ftol;
     static long seed;
-    static int step_size;
+    static double step_size;
     static int optimization_cycles;
     static int ending_eval_iteration;
     static int evaluated_iteration;
@@ -159,7 +159,7 @@ public class SimApp extends Frame {
                 SimApp.seed = Long.parseLong(str_arguments.get("seed"));
                 SimApp.random.setSeed(SimApp.seed);
 
-                SimApp.ftol = Double.parseDouble(str_arguments.get("ftol"));
+                SimApp.ftol = Double.parseDouble("1e-" + str_arguments.get("ftol"));
                 SimApp.outpath_results_folder_path = str_arguments.get("out_path");
                 input_rss_folder_path = str_arguments.get("rss_db_path");
                 eval_scenarios_path = str_arguments.get("scenarios_path");
@@ -172,7 +172,7 @@ public class SimApp extends Frame {
                 SimApp.kNearestNeighbours_for_BeliefsStrength = Integer.parseInt(str_arguments.get("k_Beliefs"));
                 SimApp.min_effective_measurement = Integer.parseInt(str_arguments.get("min_effect"));
                 SimApp.plotResolution = Integer.parseInt(str_arguments.get("plot_res"));
-                SimApp.step_size = Integer.parseInt(str_arguments.get("step"));
+                SimApp.step_size = Double.parseDouble(str_arguments.get("step"));
                 SimApp.results_per_step = false;
                 SimApp.results_per_cycle = true;
             }
@@ -1051,8 +1051,8 @@ public class SimApp extends Frame {
         SimApp.threads = Integer.parseInt(SimApp.threads_inputTextField.getText());
         SimApp.optimization_iterations_per_thread = Integer.parseInt(SimApp.optimization_iterations_per_thread_inputTextField.getText());
         SimApp.max_optimization_time_per_thread = Integer.parseInt(SimApp.max_optimization_time_per_thread_inputTextField.getText());
-        SimApp.ftol = Integer.parseInt(SimApp.ftol_inputTextField.getText());
-        SimApp.step_size = Integer.parseInt(SimApp.initial_step_size_inputTextField.getText());
+        SimApp.ftol = Double.parseDouble("1e-" + SimApp.ftol_inputTextField.getText());
+        SimApp.step_size = Double.parseDouble(SimApp.initial_step_size_inputTextField.getText());
         SimApp.optimization_cycles = Integer.parseInt(SimApp.optimization_cycles_inputTextField.getText());
 
         MathEngine.bestLikelihood = Double.NEGATIVE_INFINITY; // POSITIVE_INFINITY // NEGATIVE_INFINITY;
