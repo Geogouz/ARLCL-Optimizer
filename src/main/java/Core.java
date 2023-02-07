@@ -33,7 +33,12 @@ public class Core {
     static boolean init() throws Exception {
         SimApp.appendToTextArea("Initializing SwarmEngine");
 
-        MathEngine.generateTheOptimizerThreads();
+        if (SimApp.uwb_model){
+            MathEngineUWB.generateTheOptimizerThreads();
+        }
+        else if (SimApp.ble_model){
+            MathEngineBLE.generateTheOptimizerThreads();
+        }
 
         if (!parseDB()){
             return false;
@@ -66,13 +71,18 @@ public class Core {
             // Ignore all measurement values that are not described by our model
             // System.out.println("Checking if measurement " + measurement_value + " between remote Node " + remoteNode + " and current Node " + currentNode.id + " is at least " + SimApp.min_effective_measurement);
 
-            if ((measurement_value <= SimApp.min_effective_measurement)
-                    && (remoteNode != currentNode.id)) {
-                SimApp.effective_remoteNodes.add(remoteNode);
-
-                //System.out.println("Effective Node " + remoteNode + " added for " + currentNode + " due to measurement " + measurement_value);
-
-                SimApp.nodeID_to_nodeObject.get(remoteNode).cdl.updateMeasurementAndExtentReach(measurement_value);
+            if (SimApp.uwb_model){
+                if ((measurement_value <= SimApp.min_effective_measurement) && (remoteNode != currentNode.id)) {
+                    SimApp.effective_remoteNodes.add(remoteNode);
+                    //System.out.println("Effective Node " + remoteNode + " added for " + currentNode + " due to measurement " + measurement_value);
+                    SimApp.nodeID_to_nodeObject.get(remoteNode).cdl_uwb.updateMeasurementAndExtentReach(measurement_value);
+                }
+            }
+            else if (SimApp.ble_model){
+                if ((measurement_value >= -SimApp.min_effective_measurement) && (remoteNode != currentNode.id)) {
+                    SimApp.effective_remoteNodes.add(remoteNode);
+                    SimApp.nodeID_to_nodeObject.get(remoteNode).cdl_ble.updateMeasurementAndExtentReach(measurement_value);
+                }
             }
         }
     }
@@ -282,9 +292,16 @@ public class Core {
             //System.out.println("Removing: " + currentNode + " TempList: " + RemoteNodeIDbyPopularity_tracker.size() + " OriginalList: " + NodeIDbyPopularity_originalList.size());
 
             //currentNode = 6; // Set this manually for debugging purposes
-
-            double[] new_current_position = MathEngine.findBestPositionForCurrentNode(
-                    currentNode, SimApp.cycleCounter, SimApp.stepCounter);
+            double[] new_current_position = new double[0];
+            
+            if (SimApp.uwb_model){
+                new_current_position = MathEngineUWB.findBestPositionForCurrentNode(
+                        currentNode, SimApp.cycleCounter, SimApp.stepCounter);
+            }
+            else if (SimApp.ble_model){
+                new_current_position = MathEngineBLE.findBestPositionForCurrentNode(
+                        currentNode, SimApp.cycleCounter, SimApp.stepCounter);
+            }
 
             if (new_current_position != null){
                 currentNode.updateCurrentNodePos(new_current_position[0], new_current_position[1]);
@@ -320,9 +337,17 @@ public class Core {
 
                 //System.out.println("Removing: " + currentNodeID + " TempList: " + RemoteNodeIDbyPopularity_tracker.size() + " OriginalList: " + NodeIDbyPopularity_originalList.size());
 
-                double[] new_current_position = MathEngine.findBestPositionForCurrentNode(
-                        SimApp.nodeID_to_nodeObject.get(currentNodeID), SimApp.cycleCounter, SimApp.stepCounter);
+                double[] new_current_position = new double[0];
 
+                if (SimApp.uwb_model){
+                    new_current_position = MathEngineUWB.findBestPositionForCurrentNode(
+                            SimApp.nodeID_to_nodeObject.get(currentNodeID), SimApp.cycleCounter, SimApp.stepCounter);
+                }
+                else if (SimApp.ble_model){
+                    new_current_position = MathEngineBLE.findBestPositionForCurrentNode(
+                            SimApp.nodeID_to_nodeObject.get(currentNodeID), SimApp.cycleCounter, SimApp.stepCounter);
+                }
+                
                 if (new_current_position != null){
                     currentNode.updateCurrentNodePos(new_current_position[0], new_current_position[1]);
                 }
@@ -380,7 +405,7 @@ public class Core {
         if (SimApp.temp_OrderedRemoteNodeIDs.size()==0){
 
             // When in GUI mode, we can align the swarm based on a principal spatial variation for better visualization
-//             MathEngine.align_Swarm();
+//             MathEngineUWB.align_Swarm(); or MathEngineBLE.align_Swarm();
 
             // We start a new Cycle. At this point, sortNodesByBeliefsStrength() has already ordered the nodes.
             SimApp.temp_OrderedRemoteNodeIDs.addAll(SimApp.OrderedByBeliefsStrength_NodeIDs);
@@ -401,10 +426,18 @@ public class Core {
             //System.out.println("Removing: " + currentNode + " TempList: " + RemoteNodeIDbyPopularity_tracker.size() + " OriginalList: " + NodeIDbyPopularity_originalList.size());
 
             //currentNode = 6; // Set this manually for debugging purposes
+            
+            double[] new_current_position = new double[0];
 
-            double[] new_current_position = MathEngine.findBestPositionForCurrentNode(
-                    currentNode, SimApp.cycleCounter, SimApp.stepCounter);
-
+            if (SimApp.uwb_model){
+                new_current_position = MathEngineUWB.findBestPositionForCurrentNode(
+                        currentNode, SimApp.cycleCounter, SimApp.stepCounter);
+            }
+            else if (SimApp.ble_model){
+                new_current_position = MathEngineBLE.findBestPositionForCurrentNode(
+                        currentNode, SimApp.cycleCounter, SimApp.stepCounter);
+            }
+            
             if (new_current_position != null){
                 currentNode.updateCurrentNodePos(new_current_position[0], new_current_position[1]);
             }
@@ -447,9 +480,17 @@ public class Core {
 
                 //System.out.println("Removing: " + currentNodeID + " TempList: " + RemoteNodeIDbyPopularity_tracker.size() + " OriginalList: " + NodeIDbyPopularity_originalList.size());
 
-                double[] new_current_position = MathEngine.findBestPositionForCurrentNode(
-                        SimApp.nodeID_to_nodeObject.get(currentNodeID), SimApp.cycleCounter, SimApp.stepCounter);
+                double[] new_current_position = new double[0];
 
+                if (SimApp.uwb_model){
+                    new_current_position = MathEngineUWB.findBestPositionForCurrentNode(
+                            SimApp.nodeID_to_nodeObject.get(currentNodeID), SimApp.cycleCounter, SimApp.stepCounter);
+                }
+                else if (SimApp.ble_model){
+                    new_current_position = MathEngineBLE.findBestPositionForCurrentNode(
+                            SimApp.nodeID_to_nodeObject.get(currentNodeID), SimApp.cycleCounter, SimApp.stepCounter);
+                }
+                
                 if (new_current_position != null){
                     currentNode.updateCurrentNodePos(new_current_position[0], new_current_position[1]);
                 }
@@ -602,9 +643,6 @@ public class Core {
 
         //        System.out.println("Building the canvas");
 
-        //double coordinates = MathEngine.swarmPositioningOptimizers[0].position_likelihood.function(new double[] {300, 300});
-        //System.out.println(coordinates);
-
         boolean contours_on = SimApp.plotResolution != 0;
 
         if (odd_cycles){
@@ -681,7 +719,13 @@ public class Core {
         // Function for creating a contours plot
         Mapper mapper = new Mapper(){
             public double f(double x, double y) {
-                return MathEngine.swarmPositioningOptimizers[0].position_likelihood.function(new double[] {x, y});
+                if (SimApp.uwb_model){
+                    return MathEngineUWB.swarmPositioningOptimizers[0].position_likelihood.function(new double[] {x, y});
+                }
+                else if (SimApp.ble_model){
+                    return MathEngineBLE.swarmPositioningOptimizers[0].position_likelihood.function(new double[] {x, y});
+                }
+                return 0;
             }
         };
 
@@ -690,12 +734,23 @@ public class Core {
                 new OrthonormalGrid(x_range, 10, y_range, 10), mapper // For spanning across the entire plot
         );
 
-        ColorMapper myColorMapper = new ColorMapper(
-                new ColorMapRainbow(),
-                surface.getBounds().getZmin(),
-                MathEngine.bestLikelihood,
-                new org.jzy3d.colors.Color(1,1,1,.2f)
-        );
+        ColorMapper myColorMapper = null;
+        if (SimApp.uwb_model){
+            myColorMapper = new ColorMapper(
+                    new ColorMapRainbow(),
+                    surface.getBounds().getZmin(),
+                    MathEngineUWB.bestLikelihood,
+                    new org.jzy3d.colors.Color(1,1,1,.2f)
+            );
+        }
+        else if (SimApp.ble_model){
+            myColorMapper = new ColorMapper(
+                    new ColorMapRainbow(),
+                    surface.getBounds().getZmin(),
+                    MathEngineBLE.bestLikelihood,
+                    new org.jzy3d.colors.Color(1,1,1,.2f)
+            );
+        }
 
         surface.setDisplayed(false);
 
@@ -715,14 +770,20 @@ public class Core {
         int size = SimApp.nodeID_to_nodeObject.size();
 
         // Calculate the z position for the scatter-plot elements so that they are drawn above the function
-        double other_nodes_z;
-        double current_node_z;
+        double other_nodes_z = 0;
+        double current_node_z = 0;
         int scatter_width;
 
         if (contours_on){
-            other_nodes_z = MathEngine.bestLikelihood + 800;
+            if (SimApp.uwb_model){
+                other_nodes_z = MathEngineUWB.bestLikelihood + 800;
+                current_node_z = MathEngineUWB.bestLikelihood;
+            }
+            else if (SimApp.ble_model){
+                other_nodes_z = MathEngineBLE.bestLikelihood + 800;
+                current_node_z = MathEngineBLE.bestLikelihood;
+            }
             scatter_width = 25;
-            current_node_z = MathEngine.bestLikelihood;
         }
         else {
             other_nodes_z = 0;
@@ -751,7 +812,7 @@ public class Core {
             }
             else{
                 // Add the properties of current Node
-                points[index_calculator] = new Coord3d(current_node.current_relative_x, current_node.current_relative_y, current_node_z); // Using MathEngine.bestLikelihood; is a workaround for making the scatter visible
+                points[index_calculator] = new Coord3d(current_node.current_relative_x, current_node.current_relative_y, current_node_z); // Using here the bestLikelihood; is a workaround for making the scatter visible
                 colors[index_calculator] = new org.jzy3d.colors.Color(255, 0, 0);
             }
 
@@ -766,7 +827,14 @@ public class Core {
         double[] box_extent = MapField.getBoxExtent();
 
         // Calculate the z position for the scatter-plot elements so that they are drawn above the function
-        double scatter_z = MathEngine.bestLikelihood;
+        double scatter_z = 0;
+        
+        if (SimApp.uwb_model){
+            scatter_z = MathEngineUWB.bestLikelihood;
+        }
+        else if (SimApp.ble_model){
+            scatter_z = MathEngineBLE.bestLikelihood;
+        }
 
         // We use 4 to be able to add 4 labels for setting manually a fixed aspect ratio for the plot
         // Prepare the points for defining the entire canvas
@@ -791,9 +859,14 @@ public class Core {
     public static List<DrawableTextWrapper> getNodeLabels(boolean contours_on){
 
         // Calculate the z position for the label elements so that they are drawn above the function and scatter
-        double labels_z;
+        double labels_z = 0;
         if (contours_on){
-            labels_z = MathEngine.bestLikelihood + 1000;
+            if (SimApp.uwb_model){
+                labels_z = MathEngineUWB.bestLikelihood + 1000;
+            }
+            else if (SimApp.ble_model){
+                labels_z = MathEngineBLE.bestLikelihood + 1000;
+            }
         }
         else {
             labels_z = 0.04;
@@ -835,9 +908,18 @@ public class Core {
         ProductFinalFunctionObject = temp_distance_likelihood_function.toString();
 
         String mathematica_likelihdood_function = "r[distanceX_, distanceY_] := (" + ProductFinalFunctionObject + ")";
-        String plot_cmd = mathematica_likelihdood_function
-                + ")/ " + String.valueOf(MathEngine.bestLikelihood).replaceFirst("E-", "*^-") // Use extra ) for simplified UWB model
-                + ";\n\n";
+
+        String plot_cmd = null;
+        if (SimApp.uwb_model){
+            plot_cmd = mathematica_likelihdood_function
+                    + ")/ " + String.valueOf(MathEngineUWB.bestLikelihood).replaceFirst("E-", "*^-") // Use extra ) for simplified UWB model
+                    + ";\n\n";
+        }
+        else if (SimApp.ble_model){
+            plot_cmd = mathematica_likelihdood_function
+                    + ")/ " + String.valueOf(MathEngineBLE.bestLikelihood).replaceFirst("E-", "*^-") // Use extra ) for simplified UWB model
+                    + ";\n\n";
+        }
 
         plot_cmd = plot_cmd + "model = ContourPlot[r[distanceX, distanceY], " +
                 "{distanceX, " + MapField.global_minPlotX + ", " + MapField.global_maxPlotX + "}, " +
@@ -901,9 +983,16 @@ public class Core {
             if (remote_node.id != current_node.id){
                 // Check if this remote Node is among the effective ones
                 if (SimApp.effective_remoteNodes.contains(remote_node.id)){
-                    remote_node.cdl.updateProductLikelihoodComponentWolframOBJ();
-                    // System.out.println(remote_node.cdl.ProductLikelihoodComponent_WolframOBJ);
-                    productLikelihoodComponents.add(remote_node.cdl.ProductLikelihoodComponent_WolframOBJ);
+                    if (SimApp.uwb_model){
+                        remote_node.cdl_uwb.updateProductLikelihoodComponentWolframOBJ();
+                        // System.out.println(remote_node.cdl.ProductLikelihoodComponent_WolframOBJ);
+                        productLikelihoodComponents.add(remote_node.cdl_uwb.ProductLikelihoodComponent_WolframOBJ);
+                    }
+                    else if (SimApp.ble_model){
+                        remote_node.cdl_ble.updateProductLikelihoodComponentWolframOBJ();
+                        // System.out.println(remote_node.cdl.ProductLikelihoodComponent_WolframOBJ);
+                        productLikelihoodComponents.add(remote_node.cdl_ble.ProductLikelihoodComponent_WolframOBJ);
+                    }
                 }
             }
         }

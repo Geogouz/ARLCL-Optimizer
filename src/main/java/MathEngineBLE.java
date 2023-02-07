@@ -2,25 +2,25 @@ import flanagan.math.MaximisationFunction;
 import org.apache.commons.math3.stat.regression.SimpleRegression;
 import org.apache.commons.math3.util.FastMath;
 
-import java.math.BigDecimal;
-
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
 
 
 // Class to demonstrate Maximisation method, Maximisation nelderMead
-class MathEngine {
+class MathEngineBLE {
 
     static double bestLikelihood;
 
-    static Optimizer[] swarmPositioningOptimizers;
+    static OptimizerBLE[] swarmPositioningOptimizers;
 
     static void generateTheOptimizerThreads(){
-        // System.out.println(MathEngine.swarmPositioningOptimizers.length);
+        // System.out.println(MathEngineBLE.swarmPositioningOptimizers.length);
         // Generate as many Optimizers as the available Cores on the machine
         for (int thread = 0; thread< SimApp.threads; thread++){
             // Generate a new optimizer and add it to the thread mapper
-            MathEngine.swarmPositioningOptimizers[thread] = new Optimizer();
+            MathEngineBLE.swarmPositioningOptimizers[thread] = new OptimizerBLE();
         }
     }
 
@@ -103,16 +103,16 @@ class MathEngine {
 
         Core.getEffectiveNeighbors(currentNode);
 
-        MathEngine.generateTheOptimizerThreads();
+        MathEngineBLE.generateTheOptimizerThreads();
 
         // Start each thread worker or notify it to continue with the optimization (i.e. escape the waiting state)
-        for (Optimizer optimizer: swarmPositioningOptimizers){
+        for (OptimizerBLE optimizer: swarmPositioningOptimizers){
             // Reset the maxLikelihood
-            MathEngine.bestLikelihood = Double.NEGATIVE_INFINITY;
+            MathEngineBLE.bestLikelihood = Double.NEGATIVE_INFINITY;
             optimizer.start();
         }
         try {
-            for (Optimizer optimizer: swarmPositioningOptimizers){
+            for (OptimizerBLE optimizer: swarmPositioningOptimizers){
                 optimizer.join();
             }
         }
@@ -122,10 +122,9 @@ class MathEngine {
 
         double[] best_params = new double[0];
         // At this point, all thread workers have finished
-        for (Optimizer optimizer: swarmPositioningOptimizers){
-            if (MathEngine.bestLikelihood < optimizer.optimal_probability){ // < optimizer.optimal_probability){
-                MathEngine.bestLikelihood = optimizer.optimal_probability;
-                //System.out.println(MathEngine.bestLikelihood);
+        for (OptimizerBLE optimizer: swarmPositioningOptimizers){
+            if (MathEngineBLE.bestLikelihood < optimizer.optimal_probability){
+                MathEngineBLE.bestLikelihood = optimizer.optimal_probability;
                 best_params = optimizer.best_params;
             }
         }
@@ -142,21 +141,16 @@ class MathEngine {
                     "   Node:" + currentNode.id + " " +
                     "   Pos: [x= " + SimApp.two_decimals_formatter.format(best_params[0]).replace(",", ".") +
                     ", y= " + SimApp.two_decimals_formatter.format(best_params[1]).replace(",", ".") + "]");
-                    // "   Score: " + likelihood_formatter(MathEngine.bestLikelihood));
 
             // get values at optimum
             return(best_params);
         }
     }
-
-    private static String likelihood_formatter(double likelihood){
-        return Double.toString(likelihood).substring(0, 4) + "E-" + (BigDecimal.valueOf(likelihood).scale()-2);
-    }
 }
 
 // Class to evaluate the Circular Distance Likelihood function
 // Here, the rss is considered as the parameter
-class DistanceLikelihood implements MaximisationFunction{
+class DistanceLikelihoodBLE implements MaximisationFunction{
 
     Node attachedNode;
     double measurement;
@@ -167,45 +161,20 @@ class DistanceLikelihood implements MaximisationFunction{
 
     String ProductLikelihoodComponent_WolframOBJ = null;
 
-    public DistanceLikelihood(Node attachedNode) {
+    public DistanceLikelihoodBLE(Node attachedNode) {
         this.attachedNode = attachedNode;
     }
 
     // Set the Mathematica Likelihood Objects
     void updateProductLikelihoodComponentWolframOBJ() {
-
-        // For BLE RSS
-        //this.ProductLikelihoodComponent_WolframOBJ = "(25.029205084016887*E^(0.07848246*" + measurement + " -0.005271437722209233*(53.03569084 + " + measurement + " + 12.7416977*Log[(" +
-        //        attachedNode.current_relative_x + " -distanceX)^2 + (" +
-        //        attachedNode.current_relative_y + " -distanceY)^2])^2))*\n";
-        //
-
-        // For UWB time
-        //this.ProductLikelihoodComponent_WolframOBJ =
-        //        "((1 / (\\[Pi] * (1 + ((Sqrt[(" + attachedNode.current_relative_x + "-distanceX)^2 + (" + attachedNode.current_relative_y + "-distanceY)^2] - 30 *"
-        //                + measurement + ") / (0.3 * " + measurement + " + 20))^2))) / (0.3 * " + measurement + " + 20))*\n";
-
-        // For UWB time optimized
-        if (SimApp.uwb_model) {
-            this.ProductLikelihoodComponent_WolframOBJ = "-20 - 0.3 * " + measurement +
-                    " - ((Sqrt[(" + attachedNode.current_relative_x + "-distanceX)^2 + (" + attachedNode.current_relative_y + "-distanceY)^2] - 30 * " + measurement + ")^2)/(20 + 0.3 * " + measurement + ")\n";
-        }
+        this.ProductLikelihoodComponent_WolframOBJ = "(25.029205084016887*E^(0.07848246*" + measurement + " -0.005271437722209233*(53.03569084 + " + measurement + " + 6.37084885*Log[(" + this.attachedNode.current_relative_x + " -distanceX)^2 + (" + this.attachedNode.current_relative_y + " -distanceY)^2])^2))*\n";
     }
 
     // Evaluation function
-    public double function(double[] coords){
-        // Simplification BLE RSS 2
-        // return 0.07848246 * measurement -0.005271437722209233*Math.pow(53.03569084+ measurement +12.7416977*Math.log(Math.sqrt(Math.pow(attachedNode.current_relative_x-coords[0], 2) + Math.pow(attachedNode.current_relative_y-coords[1], 2))), 2);
-
-        // Original UWB
-        //double loc = 30 * measurement;
-        double scale = 20 + 0.3 * measurement;
-        double x = Math.sqrt(Math.pow(attachedNode.current_relative_x-coords[0], 2) + Math.pow(attachedNode.current_relative_y-coords[1], 2));
-        //return (1 / (Math.PI * (1 + Math.pow((x - 30 * measurement) / scale, 2)))) / scale;
-
-        // Simplification
-        return -(scale + Math.pow(x - 30 * measurement, 2) / scale);
-
+    public double function(double[] coords) {
+        return Math.exp(0.07848246D * measurement - 0.005271437722209233D * Math.pow(53.03569084D + measurement + 12.7416977D *
+                Math.log(
+                        Math.sqrt(Math.pow(this.attachedNode.current_relative_x - coords[0], 2.0D) + Math.pow(this.attachedNode.current_relative_y - coords[1], 2.0D))), 2.0D));
     }
 
     // Method to set the parameters of the DistanceLikelihood that belongs to the corresponding Node
@@ -220,71 +189,47 @@ class DistanceLikelihood implements MaximisationFunction{
     }
 }
 
-class Optimizer extends Thread {
+class OptimizerBLE extends Thread {
 
     // Class to evaluate the Position Likelihood function
     // Here, the rss is considered as the parameter
-    static class PositionLikelihood implements MaximisationFunction { // MinimisationFunction {
+    static class PositionLikelihoodBLE implements MaximisationFunction { // MinimisationFunction {
         // Evaluation function
         public double function(double[] coordinates) {
 
-            // simplification 2 (likelihoods are < 0, therefore, their addition is also <0)
-            double total_likelihood = 0.D;
-
-            // simplification 1
-            //double total_likelihood = 1.D;
+            double total_likelihood = 1.0D;
 
             for (int nodeID: SimApp.effective_remoteNodes){
                 Node remoteNode = SimApp.nodeID_to_nodeObject.get(nodeID);
-                double likelihood = remoteNode.cdl.function(coordinates);
+                double likelihood = remoteNode.cdl_ble.function(coordinates);
 
-                // simplification 2
-                total_likelihood = total_likelihood + likelihood;
+                total_likelihood = total_likelihood * likelihood;
 
-//                if (total_likelihood > -1){
-//                    System.out.println(total_likelihood);
-//                }
-
-                // simplification 1
-                // total_likelihood = total_likelihood * likelihood;
-
-                // simplification 2
-                if (total_likelihood==Double.NEGATIVE_INFINITY){ // POSITIVE_INFINITY // NEGATIVE_INFINITY){
-                    // TODO: We expect maybe here for the function to crush at some point due to very small values?
-                    //  Check when this happens
+                if (total_likelihood==0.0D){
                     break;
                 }
-
-                // simplification 1
-//                if (total_likelihood==0){
-//                    break;
-//                }
             }
 
             return total_likelihood;
         }
     }
-    flanagan.math.Maximisation NodePosMax = new flanagan.math.Maximisation(); // flanagan.math.Minimisation NodePosMax = new flanagan.math.Minimisation();
+    flanagan.math.Maximisation NodePosMax = new flanagan.math.Maximisation();
 
-    final PositionLikelihood position_likelihood;
-    final long optimization_time = Integer.parseInt(SimApp.max_optimization_time_per_thread_inputTextField.getText());
+    final PositionLikelihoodBLE position_likelihood;
 
-    // simplification 1
-    double optimal_probability = Double.NEGATIVE_INFINITY; // POSITIVE_INFINITY // Double.NEGATIVE_INFINITY;
+    double optimal_probability = 0.0D;
 
-    // simplification 2
-    //double highest_probability = 0D;
     double[] best_params = new double[0];
 
-    Optimizer() {
+    OptimizerBLE() {
         NodePosMax.suppressNoConvergenceMessage();
 
         // Create instance of class holding function to be optimised
-        position_likelihood = new PositionLikelihood();
+        position_likelihood = new PositionLikelihoodBLE();
     }
 
     public void run() {
-        final long force_stop_time = System.currentTimeMillis() + optimization_time;
+        final long force_stop_time = System.currentTimeMillis() + SimApp.max_optimization_time_per_thread;
 
         for (int optimization_iteration = 0; optimization_iteration< SimApp.optimization_iterations_per_thread; optimization_iteration++){
 
@@ -304,24 +249,18 @@ class Optimizer extends Thread {
             double[] start = {randomX, randomY};
 
             // initial step sizes
-//            double[] step = {0.02, 0.02};
             double[] step = {SimApp.step_size, SimApp.step_size};
 
             // convergence tolerance
-            double ftol = SimApp.ftol;
+            double ftol = 9.9E-324D;
 
             // Nelder and Mead optimization procedure
             NodePosMax.nelderMead(position_likelihood, start, step, ftol);
 
-            if (optimal_probability < NodePosMax.getMaximum()) { // > NodePosMax.getMinimum()) {
-                optimal_probability = NodePosMax.getMaximum(); // NodePosMax.getMinimum();
+            if (optimal_probability < NodePosMax.getMaximum()) {
+                optimal_probability = NodePosMax.getMaximum();
                 best_params = NodePosMax.getParamValues();
-
                 //System.out.println("Iteration: " + optimization_iteration + ": " + optimal_probability);
-
-                //if (optimization_iteration>200){
-                //    System.out.println(highest_probability + " " + Arrays.toString(NodePosMax.getParamValues()) + " {" + optimization_iteration + "}");
-                //}
             }
         }
         //System.out.println("Final: " + highest_probability + " " + Arrays.toString(best_params) + "\n");

@@ -672,7 +672,7 @@ public class SimApp extends Frame {
         SimApp.initial_step_size_inputTextField = new CustomTextField("10");
         SimApp.initial_step_size_inputTextField.setBounds(c4_x, initial_step_size_LabelArea_y, c4_content_width, small_text_height);
         SimApp.initial_step_size_inputTextField.addTextListener(
-                new integerGreaterThanBoundEnsurer(SimApp.initial_step_size_inputTextField, 1));
+                new doubleGreaterThanBoundEnsurer(SimApp.initial_step_size_inputTextField, 0));
         add((TextField) SimApp.initial_step_size_inputTextField.getTextField());
 
 
@@ -1054,11 +1054,17 @@ public class SimApp extends Frame {
         SimApp.ftol = Double.parseDouble("1e-" + SimApp.ftol_inputTextField.getText());
         SimApp.step_size = Double.parseDouble(SimApp.initial_step_size_inputTextField.getText());
         SimApp.optimization_cycles = Integer.parseInt(SimApp.optimization_cycles_inputTextField.getText());
-
-        MathEngine.bestLikelihood = Double.NEGATIVE_INFINITY; // POSITIVE_INFINITY // NEGATIVE_INFINITY;
-        MathEngine.swarmPositioningOptimizers = new Optimizer[SimApp.threads];
         SimApp.seed = Long.parseLong(SimApp.seed_inputTextField.getText());
         SimApp.random.setSeed(SimApp.seed);
+
+        if (SimApp.uwb_model){
+            MathEngineUWB.bestLikelihood = Double.NEGATIVE_INFINITY;
+            MathEngineUWB.swarmPositioningOptimizers = new OptimizerUWB[SimApp.threads];
+        }
+        else if (SimApp.ble_model){
+            MathEngineBLE.bestLikelihood = Double.NEGATIVE_INFINITY;
+            MathEngineBLE.swarmPositioningOptimizers = new OptimizerBLE[SimApp.threads];
+        }
     }
 
     private static void autoOptimizationResumer() {
@@ -1112,7 +1118,7 @@ public class SimApp extends Frame {
         }
     }
 
-    // This listener ensures an Arithmetic text of less than 500 value
+    // This listener ensures an Arithmetic text of specific bounds
     static private class integerGreaterThanBoundEnsurer implements TextListener {
 
         CustomTextField attachedTextField;
@@ -1159,6 +1165,53 @@ public class SimApp extends Frame {
         }
     }
 
+    // This listener ensures an Arithmetic text of specific bounds
+    static private class doubleGreaterThanBoundEnsurer implements TextListener {
+
+        CustomTextField attachedTextField;
+        double min_value;
+        String previous_valid_value;
+
+
+        doubleGreaterThanBoundEnsurer(CustomTextField attachedTextField, double min_value){
+            this.attachedTextField = attachedTextField;
+            this.min_value = min_value;
+            this.previous_valid_value = String.valueOf(min_value);
+        }
+
+        public void textValueChanged(TextEvent evt) {
+
+            String current_text = attachedTextField.getText();
+
+            if (current_text.length() == 0){
+                attachedTextField.setText(this.previous_valid_value);
+            }
+
+            // We do this check and corresponding update to be able to escape the infinite loop
+            else if (!current_text.equals(previous_valid_value)){
+
+                // Check whether we have exceeded the maximum allowed filename length
+                String new_text = current_text.replaceAll("/[^0-9.]/g", "");
+
+                try {
+                    double double_input = Double.parseDouble(new_text);
+
+                    if (double_input >= min_value){
+                        previous_valid_value = new_text;
+                        attachedTextField.setText(new_text);
+                    }
+                    else{
+                        attachedTextField.setText(previous_valid_value);
+                    }
+                } catch (Exception e) {
+                    attachedTextField.setText(previous_valid_value);
+                }
+
+                attachedTextField.setCaretPosition(attachedTextField.getText().length());
+            }
+        }
+    }
+
     // This listener ensures an Arithmetic text of less than 500 value
     static private class resetOptimizationParametersPanelAdapter implements ItemListener {
         public void itemStateChanged(ItemEvent evt) {
@@ -1169,18 +1222,31 @@ public class SimApp extends Frame {
                 // System.out.println("User changed to UWB model");
                 // This reset's the parameters to be the same as the ones used in our paper
                 SimApp.min_effective_measurement_inputTextField.setText("60");
+                SimApp.kNearestNeighbours_for_BeliefsStrength_inputTextField.setText("6");
+                SimApp.initial_Map_Extend_inputTextField.setText("1000");
+                SimApp.seed_inputTextField.setText("3");
+                SimApp.evaluated_iteration_inputTextField.setText("0");
                 SimApp.threads_inputTextField.setText("1");
                 SimApp.optimization_iterations_per_thread_inputTextField.setText("1000");
+                SimApp.max_optimization_time_per_thread_inputTextField.setText("1000000");
                 SimApp.ftol_inputTextField.setText("2");
                 SimApp.initial_step_size_inputTextField.setText("10");
-                SimApp.max_optimization_time_per_thread_inputTextField.setText("1000000");
                 SimApp.optimization_cycles_inputTextField.setText("50");
-                SimApp.kNearestNeighbours_for_BeliefsStrength_inputTextField.setText("6");
             }
             else if (user_selection.contains("BLE")){
                 // System.out.println("User changed to BLE model");
                 // This reset's the parameters to be the same as the ones used in our paper
-                // TODO
+                SimApp.min_effective_measurement_inputTextField.setText("95");
+                SimApp.kNearestNeighbours_for_BeliefsStrength_inputTextField.setText("6");
+                SimApp.initial_Map_Extend_inputTextField.setText("10");
+                SimApp.seed_inputTextField.setText("4879");
+                SimApp.evaluated_iteration_inputTextField.setText("0");
+                SimApp.threads_inputTextField.setText("5");
+                SimApp.optimization_iterations_per_thread_inputTextField.setText("5");
+                SimApp.max_optimization_time_per_thread_inputTextField.setText("1000000");
+                SimApp.ftol_inputTextField.setText("2");
+                SimApp.initial_step_size_inputTextField.setText("0.00005");
+                SimApp.optimization_cycles_inputTextField.setText("10");
             }
         }
     }
@@ -1355,9 +1421,9 @@ public class SimApp extends Frame {
                 String new_text = current_text.replaceAll("[^\\p{N}]+", "");
 
                 try {
-                    int plot_res = Integer.parseInt(new_text);
+                    int int_input = Integer.parseInt(new_text);
 
-                    if (plot_res<501){
+                    if (int_input < 501){
                         SimApp.previous_valid_plot_resolution = new_text;
                         SimApp.plotResolution_inputTextField.setText(new_text);
                     }
@@ -1396,61 +1462,6 @@ public class SimApp extends Frame {
                 SimApp.projectName_inputTextField.setCaretPosition(SimApp.projectName_inputTextField.getText().length());
             }
         }
-    }
-
-    static private class stopBtnAdapter implements ActionListener {
-        public void actionPerformed(ActionEvent e) {
-//            stopOptimization();
-        }
-    }
-
-    // Keep in mind that when the user requests from the optimization to cancel, he needs to wait for some time until
-    // the optimization reaches the point where stopping flag is checked
-    private static void stopOptimization(){
-//        SimApp.go_Toggle_btn.setClicked(false);
-
-//        Date date = new Date();
-
-//        appendToTextArea("Force stop at: " + SimApp.day_formatter.format(date));
-
-        // Interrupt all the Optimizers
-//        for (Optimizer optimizer: MathEngine.swarmPositioningOptimizers){
-//            optimizer.interrupt();
-//        }
-
-        // Interrupt also the Optimizer Handler
-//        SimApp.t1.interrupt();
-
-        // In case we are in-between a likelihood export process, cancel it
-//        if (SimApp.rendering_wolfram_data){
-//        }
-
-//        while (true){
-//            // Make the loop break for a bit to not suffocate the thread while waiting
-//            try {
-//                Thread.sleep(100);
-//            } catch (InterruptedException ignore) {}
-//            // Wait until the optimization has been stopped
-//            if(!SimApp.optimization_running){
-//                setPropertiesAsAvailable(true);
-//                break;
-//            }
-//        }
-
-//        if (MathEngine.NodePos_Results_filename != null){
-//            // Dump all results in a log file
-//            try (PrintWriter out = new PrintWriter(MathEngine.NodePos_Results_filename)) {
-//                String current_logs = SimApp.outputTerminal.getText();
-//                if (SimApp.headless_mode){
-//                    out.println(current_logs);
-//                }
-//                else {
-//                    out.println(current_logs.substring(0, current_logs.lastIndexOf("=========== Optimization Initiated ===========")));
-//                }
-//            } catch (FileNotFoundException exception) {
-//                exception.printStackTrace();
-//            }
-//        }
     }
 
     private static void loadImgToGUI(String last_generated_image_path){

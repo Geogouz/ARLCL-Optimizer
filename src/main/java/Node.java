@@ -6,7 +6,8 @@ public class Node {
 
     static DecimalFormat df = new DecimalFormat("#.####");
     int id;
-    DistanceLikelihood cdl;
+    DistanceLikelihoodUWB cdl_uwb;
+    DistanceLikelihoodBLE cdl_ble;
 
     double true_relative_x;
     double true_relative_y;
@@ -33,7 +34,12 @@ public class Node {
 
         // Attach the CircularDistanceLikelihood function to this Node
         // This function will be updated throughout every positioning iteration
-        cdl = new DistanceLikelihood(this);
+        if (SimApp.uwb_model){
+            cdl_uwb = new DistanceLikelihoodUWB(this);
+        }
+        else if (SimApp.ble_model){
+            cdl_ble = new DistanceLikelihoodBLE(this);
+        }
     }
 
     public void setInitialRandomPositions(){
