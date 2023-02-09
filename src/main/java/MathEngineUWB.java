@@ -166,16 +166,14 @@ class DistanceLikelihoodUWB implements MaximisationFunction{
     // Set the Mathematica Likelihood Objects
     void updateProductLikelihoodComponentWolframOBJ() {
 
-        // For UWB time
+        // The original form for UWB time
         //this.ProductLikelihoodComponent_WolframOBJ =
         //        "((1 / (\\[Pi] * (1 + ((Sqrt[(" + attachedNode.current_relative_x + "-distanceX)^2 + (" + attachedNode.current_relative_y + "-distanceY)^2] - 30 *"
         //                + measurement + ") / (0.3 * " + measurement + " + 20))^2))) / (0.3 * " + measurement + " + 20))*\n";
 
-        // For UWB time optimized
-        if (SimApp.uwb_model) {
-            this.ProductLikelihoodComponent_WolframOBJ = "-20 - 0.3 * " + measurement +
-                    " - ((Sqrt[(" + attachedNode.current_relative_x + "-distanceX)^2 + (" + attachedNode.current_relative_y + "-distanceY)^2] - 30 * " + measurement + ")^2)/(20 + 0.3 * " + measurement + ")\n";
-        }
+        // The simplified form after applying the logarithmic rule for products
+        this.ProductLikelihoodComponent_WolframOBJ = "-20 - 0.3 * " + measurement +
+                " - ((Sqrt[(" + attachedNode.current_relative_x + "-distanceX)^2 + (" + attachedNode.current_relative_y + "-distanceY)^2] - 30 * " + measurement + ")^2)/(20 + 0.3 * " + measurement + ")\n";
     }
 
     // Evaluation function
@@ -201,7 +199,7 @@ class DistanceLikelihoodUWB implements MaximisationFunction{
 class OptimizerUWB extends Thread {
 
     // Class to evaluate the Position Likelihood function
-    // Here, the rss is considered as the parameter
+    // Here, the measurement is considered as the parameter
     static class PositionLikelihood implements MaximisationFunction {
         // Evaluation function
         public double function(double[] coordinates) {
@@ -213,7 +211,7 @@ class OptimizerUWB extends Thread {
                 double likelihood = remoteNode.cdl_uwb.function(coordinates);
 
                 total_likelihood = total_likelihood + likelihood;
-
+//                System.out.println(total_likelihood);
                 if (total_likelihood==Double.NEGATIVE_INFINITY){
                     break;
                 }

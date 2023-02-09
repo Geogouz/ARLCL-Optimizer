@@ -1224,9 +1224,9 @@ public class SimApp extends Frame {
                 SimApp.min_effective_measurement_inputTextField.setText("60");
                 SimApp.kNearestNeighbours_for_BeliefsStrength_inputTextField.setText("6");
                 SimApp.initial_Map_Extend_inputTextField.setText("1000");
-                SimApp.seed_inputTextField.setText("3");
-                SimApp.evaluated_iteration_inputTextField.setText("0");
-                SimApp.threads_inputTextField.setText("1");
+                SimApp.seed_inputTextField.setText("0");
+                SimApp.evaluated_iteration_inputTextField.setText("1");
+                SimApp.threads_inputTextField.setText("5");
                 SimApp.optimization_iterations_per_thread_inputTextField.setText("1000");
                 SimApp.max_optimization_time_per_thread_inputTextField.setText("1000000");
                 SimApp.ftol_inputTextField.setText("2");
@@ -1239,14 +1239,14 @@ public class SimApp extends Frame {
                 SimApp.min_effective_measurement_inputTextField.setText("95");
                 SimApp.kNearestNeighbours_for_BeliefsStrength_inputTextField.setText("6");
                 SimApp.initial_Map_Extend_inputTextField.setText("10");
-                SimApp.seed_inputTextField.setText("4879");
-                SimApp.evaluated_iteration_inputTextField.setText("0");
+                SimApp.seed_inputTextField.setText("0");
+                SimApp.evaluated_iteration_inputTextField.setText("1");
                 SimApp.threads_inputTextField.setText("5");
-                SimApp.optimization_iterations_per_thread_inputTextField.setText("5");
+                SimApp.optimization_iterations_per_thread_inputTextField.setText("1000");
                 SimApp.max_optimization_time_per_thread_inputTextField.setText("1000000");
                 SimApp.ftol_inputTextField.setText("2");
-                SimApp.initial_step_size_inputTextField.setText("0.00005");
-                SimApp.optimization_cycles_inputTextField.setText("10");
+                SimApp.initial_step_size_inputTextField.setText("100");
+                SimApp.optimization_cycles_inputTextField.setText("50");
             }
         }
     }

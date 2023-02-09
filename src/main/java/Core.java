@@ -647,19 +647,21 @@ public class Core {
 
         if (odd_cycles){
             // This means that we need to clear any previous odd charts
-            SimApp.chart_odd.dispose();
+            try {SimApp.chart_odd.dispose();}
+            catch (Exception ignored) {}
 
             // Show the extent only if resolution is set higher than 10
             if (contours_on){
                 BufferedImage contour_filled_image = getContourImage(MapField.getXRange(), MapField.getYRange());
 
                 SimApp.chart_odd = new ContourChart();
+                SimApp.chart_odd.view2d();
+
                 ContourAxisBox chart_axis = (ContourAxisBox) SimApp.chart_odd.getView().getAxis();
                 chart_axis.setContourImg(contour_filled_image, MapField.getXRange(), MapField.getYRange());
 
                 Scatter extent_scatter = getCanvasExtentScatter();
                 SimApp.chart_odd.getView().getScene().add(extent_scatter);
-                SimApp.chart_odd.view2d();
             }
             else{
                 // Create a chart with contour axe box, and attach the contour picture
@@ -687,12 +689,13 @@ public class Core {
                 BufferedImage contour_filled_image = getContourImage(MapField.getXRange(), MapField.getYRange());
 
                 SimApp.chart_even = new ContourChart();
+                SimApp.chart_even.view2d();
+
                 ContourAxisBox chart_axis = (ContourAxisBox) SimApp.chart_even.getView().getAxis();
                 chart_axis.setContourImg(contour_filled_image, MapField.getXRange(), MapField.getYRange());
 
                 Scatter extent_scatter = getCanvasExtentScatter();
                 SimApp.chart_even.getView().getScene().add(extent_scatter);
-                SimApp.chart_even.view2d();
             }
             else{
                 // Create a chart with contour axe box, and attach the contour picture
@@ -826,6 +829,8 @@ public class Core {
 
         double[] box_extent = MapField.getBoxExtent();
 
+//        System.out.println(Arrays.toString(box_extent));
+
         // Calculate the z position for the scatter-plot elements so that they are drawn above the function
         double scatter_z = 0;
         
@@ -847,10 +852,10 @@ public class Core {
         canvas_corner_points[1] = new Coord3d(box_extent[1], box_extent[2], scatter_z);
         canvas_corner_colors[1] = new org.jzy3d.colors.Color(0, 0, 0);
 
-        canvas_corner_points[2] = new Coord3d(box_extent[1], box_extent[1], scatter_z);
+        canvas_corner_points[2] = new Coord3d(box_extent[1], box_extent[3], scatter_z);
         canvas_corner_colors[2] = new org.jzy3d.colors.Color(0, 0, 0);
 
-        canvas_corner_points[3] = new Coord3d(box_extent[0], box_extent[1], scatter_z);
+        canvas_corner_points[3] = new Coord3d(box_extent[0], box_extent[3], scatter_z);
         canvas_corner_colors[3] = new org.jzy3d.colors.Color(0, 0, 0);
 
         return new Scatter(canvas_corner_points, canvas_corner_colors, 1);
@@ -904,7 +909,13 @@ public class Core {
 
         // Remove the last unwanted chars from the Strings
         // System.out.println(temp_distance_likelihood_function);
-        temp_distance_likelihood_function.setLength(temp_distance_likelihood_function.length() - 2);
+
+        if (SimApp.uwb_model){
+            temp_distance_likelihood_function.setLength(temp_distance_likelihood_function.length() - 2);
+        }
+        else if (SimApp.ble_model){
+            temp_distance_likelihood_function.setLength(temp_distance_likelihood_function.length() - 3);
+        }
         ProductFinalFunctionObject = temp_distance_likelihood_function.toString();
 
         String mathematica_likelihdood_function = "r[distanceX_, distanceY_] := (" + ProductFinalFunctionObject + ")";

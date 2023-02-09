@@ -167,14 +167,28 @@ class DistanceLikelihoodBLE implements MaximisationFunction{
 
     // Set the Mathematica Likelihood Objects
     void updateProductLikelihoodComponentWolframOBJ() {
-        this.ProductLikelihoodComponent_WolframOBJ = "(25.029205084016887*E^(0.07848246*" + measurement + " -0.005271437722209233*(53.03569084 + " + measurement + " + 6.37084885*Log[(" + this.attachedNode.current_relative_x + " -distanceX)^2 + (" + this.attachedNode.current_relative_y + " -distanceY)^2])^2))*\n";
+        // The original form for BLE RSS
+        // this.ProductLikelihoodComponent_WolframOBJ = "(25.029205084016887*E^(0.07848246*" + measurement + " -0.005271437722209233*(53.03569084 + " + measurement + " + 12.7416977*Log[(" + this.attachedNode.current_relative_x + " -distanceX)^2 + (" + this.attachedNode.current_relative_y + " -distanceY)^2])^2))*\n";
+
+        // The simplified form after applying the logarithmic rule for products
+        this.ProductLikelihoodComponent_WolframOBJ = "(0.07848246*" + measurement +
+                " -0.005271437722209233*(53.03569084 + " + measurement + " + 12.7416977*Log[(" + this.attachedNode.current_relative_x + " -distanceX)^2 + (" + this.attachedNode.current_relative_y + " -distanceY)^2])^2)+\n";
     }
 
     // Evaluation function
     public double function(double[] coords) {
-        return Math.exp(0.07848246D * measurement - 0.005271437722209233D * Math.pow(53.03569084D + measurement + 12.7416977D *
-                Math.log(
-                        Math.sqrt(Math.pow(this.attachedNode.current_relative_x - coords[0], 2.0D) + Math.pow(this.attachedNode.current_relative_y - coords[1], 2.0D))), 2.0D));
+        // The original form for BLE RSS
+//        return Math.exp(0.07848246D * measurement - 0.005271437722209233D *
+//                    Math.pow(53.03569084D + measurement + 12.7416977D *
+//                        Math.log(Math.sqrt(Math.pow(this.attachedNode.current_relative_x - coords[0], 2.0D) + Math.pow(this.attachedNode.current_relative_y - coords[1], 2.0D)))
+//                    , 2.0D)
+//               );
+
+        // The simplified form after applying the logarithmic rule for products
+        return 0.07848246D * measurement - 0.005271437722209233D *
+                    Math.pow(53.03569084D + measurement + 12.7416977D *
+                        Math.log(Math.sqrt(Math.pow(this.attachedNode.current_relative_x - coords[0], 2.0D) + Math.pow(this.attachedNode.current_relative_y - coords[1], 2.0D)))
+                    , 2.0D);
     }
 
     // Method to set the parameters of the DistanceLikelihood that belongs to the corresponding Node
@@ -192,20 +206,20 @@ class DistanceLikelihoodBLE implements MaximisationFunction{
 class OptimizerBLE extends Thread {
 
     // Class to evaluate the Position Likelihood function
-    // Here, the rss is considered as the parameter
-    static class PositionLikelihoodBLE implements MaximisationFunction { // MinimisationFunction {
+    // Here, the measurement is considered as the parameter
+    static class PositionLikelihoodBLE implements MaximisationFunction {
         // Evaluation function
         public double function(double[] coordinates) {
 
-            double total_likelihood = 1.0D;
+            double total_likelihood = 0.0D;
 
             for (int nodeID: SimApp.effective_remoteNodes){
                 Node remoteNode = SimApp.nodeID_to_nodeObject.get(nodeID);
                 double likelihood = remoteNode.cdl_ble.function(coordinates);
 
-                total_likelihood = total_likelihood * likelihood;
-
-                if (total_likelihood==0.0D){
+                total_likelihood = total_likelihood + likelihood;
+//                System.out.println(total_likelihood);
+                if (total_likelihood==Double.NEGATIVE_INFINITY){
                     break;
                 }
             }
@@ -217,7 +231,7 @@ class OptimizerBLE extends Thread {
 
     final PositionLikelihoodBLE position_likelihood;
 
-    double optimal_probability = 0.0D;
+    double optimal_probability = Double.NEGATIVE_INFINITY;
 
     double[] best_params = new double[0];
 
@@ -252,7 +266,7 @@ class OptimizerBLE extends Thread {
             double[] step = {SimApp.step_size, SimApp.step_size};
 
             // convergence tolerance
-            double ftol = 9.9E-324D;
+            double ftol = SimApp.ftol;
 
             // Nelder and Mead optimization procedure
             NodePosMax.nelderMead(position_likelihood, start, step, ftol);
