@@ -145,8 +145,6 @@ public class SimApp extends Frame {
             HashMap<String, String> str_arguments = new HashMap<>();
 
             String input_db_folder_path = null;
-            String eval_batch_path = null;
-            int scenario_id_in_batch = 0;
 
             // This section is for parsing the arguments when these come with the equality sign
             try {
@@ -155,7 +153,7 @@ public class SimApp extends Frame {
                     str_arguments.put(key_value_pair[0], key_value_pair[1]);
                 }
 
-                SimApp.outpath_results_folder_path = str_arguments.get("out_path");
+                SimApp.outpath_results_folder_path = str_arguments.get("");
                 SimApp.plotResolution = Integer.parseInt(str_arguments.get("contours"));
                 SimApp.min_effective_measurement = Integer.parseInt(str_arguments.get("min_m"));
                 SimApp.kNearestNeighbours_for_BeliefsStrength = Integer.parseInt(str_arguments.get("kn"));
@@ -164,7 +162,7 @@ public class SimApp extends Frame {
                 SimApp.threads = Integer.parseInt(str_arguments.get("threads"));
                 SimApp.optimization_iterations_per_thread = Integer.parseInt(str_arguments.get("opt_iter"));
                 SimApp.max_optimization_time_per_thread = Integer.parseInt(str_arguments.get("max_t"));
-                SimApp.ftol = Double.parseDouble("1e-" + str_arguments.get("ftol"));
+                SimApp.ftol = Double.parseDouble(str_arguments.get("f_tol"));
                 SimApp.step_size = Double.parseDouble(str_arguments.get("step"));
                 SimApp.optimization_cycles = Integer.parseInt(str_arguments.get("cycles"));
 
@@ -186,8 +184,10 @@ public class SimApp extends Frame {
                 SimApp.random.setSeed(SimApp.seed);
 
                 input_db_folder_path = str_arguments.get("db_path");
-                eval_batch_path = str_arguments.get("batch_path");
-                scenario_id_in_batch = Integer.parseInt(str_arguments.get("scenario_id"));
+                String eval_batch_path = str_arguments.get("batch_path");
+                int scenario_id_in_batch = Integer.parseInt(str_arguments.get("scenario_id"));
+                // Parse the evaluation scenarios from the combos file
+                SimApp.eval_scenario = parseEvalScenario(scenario_id_in_batch, eval_batch_path);
             }
             catch (Exception e) {
                 e.printStackTrace();
@@ -198,13 +198,10 @@ public class SimApp extends Frame {
             // Initiate the iteration index
             SimApp.evaluated_iteration = 0;
 
-            // Parse the evaluation scenarios from the combos file
-            eval_scenario = parseEvalScenarios(scenario_id_in_batch, eval_batch_path);
-
             // This section is for setting our hardcoded minimal arguments
-            String deployment_type = eval_scenario[0];
-            String swarmIDs = eval_scenario[1];
-            String sample_size = eval_scenario[2];
+            String deployment_type = SimApp.eval_scenario[0];
+            String swarmIDs = SimApp.eval_scenario[1];
+            String sample_size = SimApp.eval_scenario[2];
 
             SimApp.clean_evaluated_scenario_name = deployment_type + "_" + swarmIDs + "_" + sample_size;
             SimApp.input_file_path = input_db_folder_path + SimApp.clean_evaluated_scenario_name + ".smpl";
@@ -213,11 +210,13 @@ public class SimApp extends Frame {
             // Check to see if there is any .zip file so that we can cancel the process completely
             File zip_file = new File(zip_name);
             if (zip_file.exists()){
+                System.out.println("Zip already exists");
                 // At this point we can close the program
                 System.exit(0);
             }
 
-            executeHeadlessOptimizationJobs();
+            System.out.println("Parameters parsed. Starting the localization.");
+            //executeHeadlessOptimizationJobs();
         }
         else {
             System.out.println("Executing ARLCL Optimizer in GUI mode");
@@ -326,7 +325,7 @@ public class SimApp extends Frame {
         fos.close();
     }
 
-    private static String[] parseEvalScenarios(long lines_to_skip, String eval_scenarios_path) {
+    private static String[] parseEvalScenario(long lines_to_skip, String eval_scenarios_path) {
         String[] temp_args = null;
         try {
             Path in_path = Paths.get(eval_scenarios_path);
