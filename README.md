@@ -132,7 +132,7 @@ www.youtube.com/watch?v=2DhkNLAwHkw
 For batch execution (with results per cycle), the application may be launched in a scripted manner by executing the jar in headless mode and passing the selected parameters.
 The user needs to configure and call sequentially the provided batch-run.bat, or use directly the CLI according to the following example:
 
-`$ java -jar "arlcl-optimizer.jar" out_path="Export" db_path="Examples/BLE-RSS_Evaluation-Samples_Lecture-Room (Examples)/DB" batch_path="Examples/BLE-RSS_Evaluation-Samples_Lecture-Room (Examples)/Batch.txt" model=ble contours=30 min_m=95 kn=6 pos_extent=10 seed=0 end_iter=100 threads=1 opt_iter=1000 max_t=1000000 f_tol=1e-2 step=100 cycles=50`
+`$ java -jar "arlcl-optimizer.jar" out_path="Export" db_path="Examples/BLE-RSS_Evaluation-Samples_Lecture-Room (Examples)/DB" batch_path="Examples/BLE-RSS_Evaluation-Samples_Lecture-Room (Examples)/Batch.txt" scenario_id=0 model=ble contours=30 min_m=95 kn=6 pos_extent=10 seed=0 end_iter=100 threads=5 opt_iter=1000 max_t=1000000 f_tol=1e-2 step=100 cycles=50`
 
 ### Parameters
 
@@ -141,7 +141,7 @@ The user needs to configure and call sequentially the provided batch-run.bat, or
 | *out_path*    | Export folder where to store the archived results. All evaluated iterations of a specific scenario (e.g. "T (1,6,8,9,12,16) 15") are stored as a group in a single .zip archive.                                                                          |
 | *db_path*     | DB folder containing all measurements. Each evaluated scenario that is considered in the index batch file (e.g. "T (1,6,8,9,12,16) 15") should have a single corresponding DB file *db_path* that includes the measurements for all evaluated iterations. |
 | *batch_path*  | Path to the batch file containing all evaluated scenarios.                                                                                                                                                                                                |
-| *scenario_id* | Index (i.e. line number) of the scenario in the batch file to evaluate. An automated batch execution of multiple scenarios would require that this ID (along typically with a new seed) is set dynamically.                                               |
+| *scenario_id* | Index (i.e. line number) of the scenario in the batch file to evaluate. An automated (and possibly parallel) batch execution of multiple scenarios would require that this ID is set dynamically.                                                         |
 | *model*       | Type of ranging measurement (should correspond to the loaded DB file) [ble/uwb].                                                                                                                                                                          |
 | *contours*    | Number of contours to be used in the exported Wolfram plotting command.                                                                                                                                                                                   |
 | *min_m*       | Measurements above this threshold will not be considered during the localization. The effective neighbors are represented in yellow.                                                                                                                      |

@@ -266,7 +266,7 @@ class OptimizerBLE extends Thread {
             double[] step = {SimApp.step_size, SimApp.step_size};
 
             // convergence tolerance
-            double ftol = SimApp.ftol;
+            double ftol = SimApp.f_tol;
 
             // Nelder and Mead optimization procedure
             NodePosMax.nelderMead(position_likelihood, start, step, ftol);

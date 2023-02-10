@@ -54,7 +54,7 @@ public class SimApp extends Frame {
     static int threads;
     static int optimization_iterations_per_thread;
     static int max_optimization_time_per_thread;
-    static double ftol;
+    static double f_tol;
     static long seed;
     static double step_size;
     static int optimization_cycles;
@@ -74,8 +74,6 @@ public class SimApp extends Frame {
     static ArrayList<Integer> effective_remoteNodes;
     static DecimalFormat two_decimals_formatter = new DecimalFormat("#.##");
     static WnAdapter window_adapter;
-    static String previous_valid_project_name = "";
-    static String previous_valid_plot_resolution = "";
     static Component chart_component_even;
     static Component chart_component_odd;
     static Rectangle chart_components_bounds;
@@ -99,7 +97,6 @@ public class SimApp extends Frame {
     static CustomTextArea seed_LabelArea;
     static CustomTextArea evaluated_iteration_LabelArea;
     static CustomTextArea threads_LabelArea;
-    static CustomTextField projectName_inputTextField;
     static CustomTextField kNearestNeighbours_for_BeliefsStrength_inputTextField;
     static CustomTextField max_optimization_time_per_thread_inputTextField;
     static CustomTextField optimization_cycles_inputTextField;
@@ -133,6 +130,10 @@ public class SimApp extends Frame {
     final static Random random = new Random();
 
     public static void run(String[] argv){
+
+        // This will hold the log output
+        SimApp.outputTerminal = new CustomTextArea("");
+
         SimApp.headless_mode = argv.length != 0;
 
         if (headless_mode){
@@ -145,6 +146,7 @@ public class SimApp extends Frame {
             HashMap<String, String> str_arguments = new HashMap<>();
 
             String input_db_folder_path = null;
+            String db_extension = null;
 
             // This section is for parsing the arguments when these come with the equality sign
             try {
@@ -153,7 +155,7 @@ public class SimApp extends Frame {
                     str_arguments.put(key_value_pair[0], key_value_pair[1]);
                 }
 
-                SimApp.outpath_results_folder_path = str_arguments.get("");
+                SimApp.outpath_results_folder_path = str_arguments.get("out_path");
                 SimApp.plotResolution = Integer.parseInt(str_arguments.get("contours"));
                 SimApp.min_effective_measurement = Integer.parseInt(str_arguments.get("min_m"));
                 SimApp.kNearestNeighbours_for_BeliefsStrength = Integer.parseInt(str_arguments.get("kn"));
@@ -162,7 +164,7 @@ public class SimApp extends Frame {
                 SimApp.threads = Integer.parseInt(str_arguments.get("threads"));
                 SimApp.optimization_iterations_per_thread = Integer.parseInt(str_arguments.get("opt_iter"));
                 SimApp.max_optimization_time_per_thread = Integer.parseInt(str_arguments.get("max_t"));
-                SimApp.ftol = Double.parseDouble(str_arguments.get("f_tol"));
+                SimApp.f_tol = Double.parseDouble(str_arguments.get("f_tol"));
                 SimApp.step_size = Double.parseDouble(str_arguments.get("step"));
                 SimApp.optimization_cycles = Integer.parseInt(str_arguments.get("cycles"));
 
@@ -170,14 +172,21 @@ public class SimApp extends Frame {
                 if (selected_model.matches("ble")){
                     SimApp.ble_model = true;
                     SimApp.uwb_model = false;
+                    MathEngineBLE.bestLikelihood = Double.NEGATIVE_INFINITY;
+                    MathEngineBLE.swarmPositioningOptimizers = new OptimizerBLE[SimApp.threads];
+                    db_extension = ".rss";
                 }
                 else if (selected_model.matches("uwb")){
                     SimApp.uwb_model = true;
                     SimApp.ble_model = false;
+                    MathEngineUWB.bestLikelihood = Double.NEGATIVE_INFINITY;
+                    MathEngineUWB.swarmPositioningOptimizers = new OptimizerUWB[SimApp.threads];
+                    db_extension = ".smpl";
                 }
 
                 SimApp.results_per_step = false;
                 SimApp.results_per_cycle = true;
+                SimApp.export_ProductLikelihood_WolframPlot = true;
 
                 // Get and set the seed
                 SimApp.seed = Long.parseLong(str_arguments.get("seed"));
@@ -204,9 +213,9 @@ public class SimApp extends Frame {
             String sample_size = SimApp.eval_scenario[2];
 
             SimApp.clean_evaluated_scenario_name = deployment_type + "_" + swarmIDs + "_" + sample_size;
-            SimApp.input_file_path = input_db_folder_path + SimApp.clean_evaluated_scenario_name + ".smpl";
+            SimApp.input_file_path = input_db_folder_path + SimApp.clean_evaluated_scenario_name + db_extension;
 
-            String zip_name = SimApp.outpath_results_folder_path + SimApp.clean_evaluated_scenario_name + ".zip";
+            String zip_name = Paths.get(SimApp.outpath_results_folder_path,SimApp.clean_evaluated_scenario_name, ".zip").toString();
             // Check to see if there is any .zip file so that we can cancel the process completely
             File zip_file = new File(zip_name);
             if (zip_file.exists()){
@@ -216,7 +225,7 @@ public class SimApp extends Frame {
             }
 
             System.out.println("Parameters parsed. Starting the localization.");
-            //executeHeadlessOptimizationJobs();
+            executeHeadlessOptimizationJobs();
         }
         else {
             System.out.println("Executing ARLCL Optimizer in GUI mode");
@@ -236,30 +245,32 @@ public class SimApp extends Frame {
         while (SimApp.evaluated_iteration < SimApp.ending_eval_iteration + 1){
             try {
                 resetDataStructures();
-                headlessInit();
 
-                boolean valid_measurements_found = Core.init();
+                boolean iteration_results_already_available = handleDirectoriesHeadless();
 
-                if (!valid_measurements_found){
-                    System.out.println("No valid measurements found in the database");
-                    // At this point we can close the program
-                    System.exit(0);
+                // Proceed or not with current iteration depending on the existence of previous results
+                if (!iteration_results_already_available){
+                    resetTextArea();
+
+                    // Prepare the log about the used optimization's settings
+                    prepareInitializationLog();
+
+                    if (Core.init()){
+                        while (!SimApp.stop_optimization) {
+                            Core.resumeSwarmPositioningInGUIMode();
+                            System.gc();
+                        }
+                    }
+                    else{
+                        SimApp.appendToTextArea("Canceling optimization!");
+                    }
                 }
 
                 System.out.println("Start Optimizing");
-                SimApp.go_Toggle_btn.setClicked(true);
             } catch (Exception e) {
                 e.printStackTrace();
                 // At this point we can close the program
                 System.exit(0);
-            }
-
-            // Wait for almost "infinite" amount of time for the auto resume scheduler to finish.
-            // Then we shall continue with the next iteration
-            try {
-                scheduler.awaitTermination(10000000, SECONDS); // TODO: Hardcoded to be changed
-            } catch (InterruptedException e) {
-                e.printStackTrace();
             }
 
             // Increment one step and continue
@@ -273,7 +284,8 @@ public class SimApp extends Frame {
             System.out.println("Storing results");
             SimApp.storeResults();
 
-            File directoryToBeDeleted = new File(SimApp.outpath_results_folder_path + SimApp.clean_evaluated_scenario_name);
+            String deletion_dir = Paths.get(SimApp.outpath_results_folder_path,SimApp.clean_evaluated_scenario_name).toString();
+            File directoryToBeDeleted = new File(deletion_dir);
             deleteDirectory(directoryToBeDeleted);
 
         } catch (Exception e) {
@@ -314,8 +326,8 @@ public class SimApp extends Frame {
     }
 
     static void storeResults() throws IOException {
-        System.out.println(SimApp.outpath_results_folder_path + SimApp.clean_evaluated_scenario_name);
-        String sourceFile = SimApp.outpath_results_folder_path + SimApp.clean_evaluated_scenario_name;
+//        System.out.println(SimApp.outpath_results_folder_path + SimApp.clean_evaluated_scenario_name);
+        String sourceFile = Paths.get(SimApp.outpath_results_folder_path, SimApp.clean_evaluated_scenario_name).toString();
         FileOutputStream fos = new FileOutputStream(sourceFile+".zip");
         ZipOutputStream zipOut = new ZipOutputStream(fos);
         File fileToZip = new File(sourceFile);
@@ -764,9 +776,6 @@ public class SimApp extends Frame {
 
         setVisible(true);
         toFront();
-
-        // Initiate the automated resumer
-        //auto_optimization_resumer(); // TODO: Remove
     }
 
     private static void resetChartCanvas() {
@@ -823,38 +832,6 @@ public class SimApp extends Frame {
         SimApp.ftol_inputTextField.setEnabled(state);
         SimApp.initial_step_size_inputTextField.setEnabled(state);
         SimApp.optimization_cycles_inputTextField.setEnabled(state);
-    }
-
-    // This function is used during the headless execution
-    public static void headlessInit() {
-        SimApp.outputTerminal = new CustomTextArea("");
-        SimApp.go_Toggle_btn = new CustomToggleButton("GO");
-        SimApp.projectName_inputTextField = new CustomTextField(SimApp.clean_evaluated_scenario_name);
-
-        // On the very first iteration, ensure that folder structure is as supposed to be
-        if (SimApp.evaluated_iteration == 0){
-            // First ensure that the given output path folder path to store the estimations is valid
-            SimApp.ensureFolder(SimApp.outpath_results_folder_path);
-
-            // Then, ensure that the given project name exists as a folder
-            SimApp.ensureFolder(SimApp.outpath_results_folder_path + SimApp.clean_evaluated_scenario_name + "/");
-        }
-
-        // Construct the destination path for the results of current iteration
-        SimApp.output_iteration_results_folder_path = SimApp.outpath_results_folder_path + SimApp.clean_evaluated_scenario_name + "/" + SimApp.evaluated_iteration + "/";
-
-        // Check whether current iteration has already been done before
-        boolean iteration_results_already_available = SimApp.handlePreviousIterationResults(false);
-
-        // Initiate the automated resumer
-        autoOptimizationResumer();
-
-        // Proceed or not with current iteration depending on the existence of previous results
-        if (iteration_results_already_available){
-            // Stop the auto-resumer for the current optimization process
-            SimApp.scheduled_auto_resumer.cancel(true);
-            SimApp.scheduler.shutdown();
-        }
     }
 
     // This method takes care of the proper folder structure.
@@ -919,8 +896,6 @@ public class SimApp extends Frame {
 
     static void setPropertiesAsAvailable(boolean enabled){
 
-        SimApp.projectName_inputTextField.setEnabled(enabled);
-
         // Update the map-exporting toggler's state
         if (!SimApp.headless_mode){
             SimApp.results_per_step_btn.setEnabled(enabled);
@@ -976,7 +951,7 @@ public class SimApp extends Frame {
                     "\nThread workers: " +  SimApp.threads +
                     "\nOptimization iterations per thread: " + SimApp.optimization_iterations_per_thread +
                     "\nMax step optimization runtime (per thread): " + SimApp.max_optimization_time_per_thread +
-                    "\nOptimization's ftol: " + SimApp.ftol +
+                    "\nOptimization's ftol: " + SimApp.f_tol +
                     "\nOptimization's step size: " + SimApp.step_size +
                     "\nStop Cycle: " + SimApp.optimization_cycles +
                     "\nResults per: " + results_per_selection +
@@ -1034,7 +1009,7 @@ public class SimApp extends Frame {
                 "\nThread workers: " +  SimApp.threads +
                 "\nOptimization iterations per thread: " + SimApp.optimization_iterations_per_thread +
                 "\nMax step optimization runtime (per thread): " + SimApp.max_optimization_time_per_thread +
-                "\nOptimization's ftol: " + SimApp.ftol +
+                "\nOptimization's ftol: " + SimApp.f_tol +
                 "\nOptimization's step size: " + SimApp.step_size +
                 "\nStop Cycle: " + SimApp.optimization_cycles +
                 "\nResults per: " + results_per_selection +
@@ -1062,7 +1037,7 @@ public class SimApp extends Frame {
         SimApp.threads = Integer.parseInt(SimApp.threads_inputTextField.getText());
         SimApp.optimization_iterations_per_thread = Integer.parseInt(SimApp.optimization_iterations_per_thread_inputTextField.getText());
         SimApp.max_optimization_time_per_thread = Integer.parseInt(SimApp.max_optimization_time_per_thread_inputTextField.getText());
-        SimApp.ftol = Double.parseDouble("1e-" + SimApp.ftol_inputTextField.getText());
+        SimApp.f_tol = Double.parseDouble("1e-" + SimApp.ftol_inputTextField.getText());
         SimApp.step_size = Double.parseDouble(SimApp.initial_step_size_inputTextField.getText());
         SimApp.optimization_cycles = Integer.parseInt(SimApp.optimization_cycles_inputTextField.getText());
         SimApp.seed = Long.parseLong(SimApp.seed_inputTextField.getText());
@@ -1076,21 +1051,6 @@ public class SimApp extends Frame {
             MathEngineBLE.bestLikelihood = Double.NEGATIVE_INFINITY;
             MathEngineBLE.swarmPositioningOptimizers = new OptimizerBLE[SimApp.threads];
         }
-    }
-
-    private static void autoOptimizationResumer() {
-        scheduler = Executors.newScheduledThreadPool(1);
-
-        final Runnable auto_resumer = () -> {
-            //System.out.println("Sim_App.autoResume.getState():" + Sim_App.autoResume.getState() + " Sim_App.autoResume.isEnabled():" + Sim_App.autoResume.isEnabled());
-
-            // Check if the user has just enabled the auto resumer
-            if (SimApp.go_Toggle_btn.isClicked() && SimApp.go_Toggle_btn.isEnabled()){
-                resume();
-            }
-        };
-
-        scheduled_auto_resumer = scheduler.scheduleAtFixedRate(auto_resumer, 0, 100, MILLISECONDS);
     }
 
     static boolean ensureFolder(String selected_path){
@@ -1321,22 +1281,10 @@ public class SimApp extends Frame {
 
                     resetDataStructures();
 
-                    // Only one iteration will be performed since we are in a graphical environment.
-                    // Ensure that the required exporting folder structure exists
+                    boolean iteration_results_already_available = handleDirectoriesGUI();
 
-                    String evaluated_scenario_destination_path = Paths.get(
-                            SimApp.outpath_results_folder_path,
-                            SimApp.clean_evaluated_scenario_name
-                    ).toString();
-
-                    System.out.println("Ensuring scenario root folder" + evaluated_scenario_destination_path);
-                    SimApp.ensureFolder(evaluated_scenario_destination_path);
-
-                    // Check whether current iteration has already been done before
-                    boolean iteration_results_already_available =  SimApp.handlePreviousIterationResults(true);
-
+                    // Proceed or not with current iteration depending on the existence of previous results
                     if (!iteration_results_already_available){
-
                         resetTextArea();
 
                         // Create a controller thread to run separately from the GUI.
@@ -1402,6 +1350,43 @@ public class SimApp extends Frame {
         }
     }
 
+
+    static private boolean handleDirectoriesHeadless() {
+        // On the very first iteration, ensure that folder structure is as supposed to be
+        if (SimApp.evaluated_iteration == 0){
+            // First ensure that the given output path folder path to store the estimations is valid
+            SimApp.ensureFolder(SimApp.outpath_results_folder_path);
+
+            String evaluated_scenario_destination_path = Paths.get(
+                    SimApp.outpath_results_folder_path,
+                    SimApp.clean_evaluated_scenario_name
+            ).toString();
+
+            System.out.println("Ensuring scenario root folder" + evaluated_scenario_destination_path);
+            // Then, ensure that the given project name exists as a folder
+            SimApp.ensureFolder(evaluated_scenario_destination_path);
+        }
+
+        // Check whether current iteration has already been done before
+        return SimApp.handlePreviousIterationResults(false);
+    }
+
+    static private boolean handleDirectoriesGUI() {
+        // Only one iteration will be performed since we are in a graphical environment.
+        // Ensure that the required exporting folder structure exists
+
+        String evaluated_scenario_destination_path = Paths.get(
+                SimApp.outpath_results_folder_path,
+                SimApp.clean_evaluated_scenario_name
+        ).toString();
+
+        System.out.println("Ensuring scenario root folder" + evaluated_scenario_destination_path);
+        SimApp.ensureFolder(evaluated_scenario_destination_path);
+
+        // Check whether current iteration has already been done before
+        return  SimApp.handlePreviousIterationResults(true);
+    }
+
     static private class clearTerminalBtnAdapter implements ActionListener {
         public void actionPerformed(ActionEvent e) {
             resetTextArea();
@@ -1412,66 +1397,6 @@ public class SimApp extends Frame {
         public void windowClosing(WindowEvent event) {
             dispose();
             System.exit(0);
-        }
-    }
-
-    // This listener ensures an Arithmetic text of less than 500 value
-    static private class plotResolutionInputTextAreaEnsurer implements TextListener {
-        public void textValueChanged(TextEvent evt) {
-
-            String current_text = SimApp.plotResolution_inputTextField.getText();
-
-            if (current_text.length() == 0){
-                SimApp.plotResolution_inputTextField.setText("1");
-            }
-
-            // We do this check and corresponding update to be able to escape the infinite loop
-            else if (!current_text.equals(SimApp.previous_valid_plot_resolution)){
-
-                // Check whether we have exceeded the maximum allowed filename length
-                String new_text = current_text.replaceAll("[^\\p{N}]+", "");
-
-                try {
-                    int int_input = Integer.parseInt(new_text);
-
-                    if (int_input < 501){
-                        SimApp.previous_valid_plot_resolution = new_text;
-                        SimApp.plotResolution_inputTextField.setText(new_text);
-                    }
-                    else{
-                        SimApp.plotResolution_inputTextField.setText(SimApp.previous_valid_plot_resolution);
-                    }
-                } catch (Exception e) {
-                    SimApp.plotResolution_inputTextField.setText(SimApp.previous_valid_plot_resolution);
-                }
-
-                SimApp.plotResolution_inputTextField.setCaretPosition(SimApp.plotResolution_inputTextField.getText().length());
-            }
-        }
-    }
-
-    // This listener ensures an Alpharithmetic text of less than 16 Chars length
-    static private class projectName_inputTextArea_Ensurer implements TextListener {
-        public void textValueChanged(TextEvent evt) {
-
-            String current_text = SimApp.projectName_inputTextField.getText();
-
-            //SimApp.resumeBtn.setEnabled(current_text.length() != 0);
-
-            // We do this check and corresponding update to be able to escape the infinite loop
-            if (!current_text.equals(SimApp.previous_valid_project_name)){
-
-                // Check whether we have exceeded the maximum allowed filename length
-                if (current_text.length() > 15){
-                    SimApp.projectName_inputTextField.setText(SimApp.previous_valid_project_name);
-                }
-                else{
-                    String new_text = current_text.replaceAll("[^\\p{L}\\p{N} ]+", "");
-                    SimApp.previous_valid_project_name = new_text;
-                    SimApp.projectName_inputTextField.setText(new_text);
-                }
-                SimApp.projectName_inputTextField.setCaretPosition(SimApp.projectName_inputTextField.getText().length());
-            }
         }
     }
 
