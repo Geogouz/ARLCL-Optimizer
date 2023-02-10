@@ -129,11 +129,30 @@ www.youtube.com/watch?v=2DhkNLAwHkw
 
 ## Headless mode
 
-For batch execution, the application may start by executing the jar and passing the selected parameters.
-
-Example command:
+For batch execution (with results per cycle), the application may be launched in a scripted manner by executing the jar in headless mode and passing the selected parameters.
+The user needs to configure and call sequentially the provided batch-run.bat, or use directly the CLI according to the following example:
 
 `$ java -jar "arlcl-optimizer.jar" out_path="Export" db_path="Examples/BLE-RSS_Evaluation-Samples_Lecture-Room (Examples)/DB" batch_path="Examples/BLE-RSS_Evaluation-Samples_Lecture-Room (Examples)/Batch.txt" model=ble contours=30 min_m=95 kn=6 pos_extent=10 seed=0 end_iter=100 threads=1 opt_iter=1000 max_t=1000000 f_tol=1e-2 step=100 cycles=50`
+
+### Parameters
+
+Parameter  | Description
+------------- | -------------
+out_path|Export folder where to store the archived results. All evaluted iterations of a specific scenario (e.g. "T (1,6,8,9,12,16) 15") are stored as a group in a single .zip archive.
+Rang. Model|Type of ranging measurement (should correspond to the loaded DB file) [BLE/UWB].
+Export function|For storing the likelihood function as a Wolfram plot.
+Contours|Number of contours to be drawn. Setting this to 0 will draw a 3D plot (Used for 3D localization).
+Min Effective Measurement|Measurements above this threshold will not be considered during the localization. The effective neighbors are represented in yellow.
+k Nearest Nodes for Effectiveness Check|The k closest neighbors to be considered for identifying the optimization order.
+Extent of Random Positions Initialization|How far nodes can be randomly spawn during their initialization.
+Seed for Random Positions Initialization|Seed for any random values generated during the optimization.
+Iteration in scenario to evaluate|The is the ID of the last iteration. Each DB file can contain multiple evaluation iterations (e.g. 100 for the case of #RSS_100#).
+Optimization Threads|Number of optimization thread workers to be used.
+Optimization Iterations per Thread|How deep each optimization worker will be searching for the optimal solution at each step. 
+Max Step-Opt. Runtime per Thread|A time threshold to be used per step optimization. Has a higher priority compared to the “Optimization Iterations per Thread”.
+Optimization's ftol|Tolerance for the optimization based on the Nelder–Mead method.
+Optimization's Initial Step Size|The step size considered by the Nelder–Mead method.
+Optimization Cycles|For how many cycles to perform localization.
 
 ----
 
