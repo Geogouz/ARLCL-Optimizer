@@ -103,23 +103,23 @@ The application may start by executing the provided run.bat or directly from CLI
 
 ### Parameters
 
-Parameter  | Description
-------------- | -------------
-Results per|Optimization state after which results shall be presented [Step/Cycle].
-Rang. Model|Type of ranging measurement (should correspond to the loaded DB file) [BLE/UWB].
-Export function|For storing the likelihood function as a Wolfram plot.
-Contours|Number of contours to be drawn. Setting this to 0 will draw a 3D plot (Used for 3D localization).
-Min Effective Measurement|Measurements above this threshold will not be considered during the localization. The effective neighbors are represented in yellow.
-k Nearest Nodes for Effectiveness Check|The k closest neighbors to be considered for identifying the optimization order.
-Extent of Random Positions Initialization|How far nodes can be randomly spawn during their initialization.
-Seed for Random Positions Initialization|Seed for any random values generated during the optimization.
-Iteration in scenario to evaluate|The is the ID of the last iteration. Each DB file can contain multiple evaluation iterations (e.g. 100 for the case of #RSS_100#).
-Optimization Threads|Number of optimization thread workers to be used.
-Optimization Iterations per Thread|How deep each optimization worker will be searching for the optimal solution at each step. 
-Max Step-Opt. Runtime per Thread|A time threshold to be used per step optimization. Has a higher priority compared to the “Optimization Iterations per Thread”.
-Optimization's ftol|Tolerance for the optimization based on the Nelder–Mead method.
-Optimization's Initial Step Size|The step size considered by the Nelder–Mead method.
-Optimization Cycles|For how many cycles to perform localization.
+| Parameter                                 | Description                                                                                                                          |
+|-------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------|
+| Results per                               | Optimization state after which results shall be presented [Step/Cycle].                                                              |
+| Rang. Model                               | Type of ranging measurement (should correspond to the loaded DB file) [BLE/UWB].                                                     |
+| Export function                           | For storing the likelihood function as a Wolfram plot.                                                                               |
+| Contours                                  | Number of contours to be drawn. Setting this to 0 will draw a 3D plot (Used for 3D localization).                                    |
+| Min Effective Measurement                 | Measurements above this threshold will not be considered during the localization. The effective neighbors are represented in yellow. |
+| k Nearest Nodes for Effectiveness Check   | The k closest neighbors to be considered for identifying the optimization order.                                                     |
+| Extent of Random Positions Initialization | How far nodes can be randomly spawn during their initialization.                                                                     |
+| Seed for Random Positions Initialization  | Seed for any random values generated during the optimization.                                                                        |
+| Iteration in scenario to evaluate         | The is the ID of the last iteration. Each DB file can contain multiple evaluation iterations (e.g. 100 for the case of #RSS_100#).   |
+| Optimization Threads                      | Number of optimization thread workers to be used.                                                                                    |
+| Optimization Iterations per Thread        | How deep each optimization worker will be searching for the optimal solution at each step.                                           |
+| Max Step-Opt. Runtime per Thread          | A time threshold to be used per step optimization. Has a higher priority compared to the “Optimization Iterations per Thread”.       |
+| Optimization's ftol                       | Tolerance for the optimization based on the Nelder–Mead method.                                                                      |
+| Optimization's Initial Step Size          | The step size considered by the Nelder–Mead method.                                                                                  |
+| Optimization Cycles                       | For how many cycles to perform localization.                                                                                         |
 
 ----
 
@@ -136,23 +136,24 @@ The user needs to configure and call sequentially the provided batch-run.bat, or
 
 ### Parameters
 
-Parameter  | Description
-------------- | -------------
-out_path|Export folder where to store the archived results. All evaluted iterations of a specific scenario (e.g. "T (1,6,8,9,12,16) 15") are stored as a group in a single .zip archive.
-Rang. Model|Type of ranging measurement (should correspond to the loaded DB file) [BLE/UWB].
-Export function|For storing the likelihood function as a Wolfram plot.
-Contours|Number of contours to be drawn. Setting this to 0 will draw a 3D plot (Used for 3D localization).
-Min Effective Measurement|Measurements above this threshold will not be considered during the localization. The effective neighbors are represented in yellow.
-k Nearest Nodes for Effectiveness Check|The k closest neighbors to be considered for identifying the optimization order.
-Extent of Random Positions Initialization|How far nodes can be randomly spawn during their initialization.
-Seed for Random Positions Initialization|Seed for any random values generated during the optimization.
-Iteration in scenario to evaluate|The is the ID of the last iteration. Each DB file can contain multiple evaluation iterations (e.g. 100 for the case of #RSS_100#).
-Optimization Threads|Number of optimization thread workers to be used.
-Optimization Iterations per Thread|How deep each optimization worker will be searching for the optimal solution at each step. 
-Max Step-Opt. Runtime per Thread|A time threshold to be used per step optimization. Has a higher priority compared to the “Optimization Iterations per Thread”.
-Optimization's ftol|Tolerance for the optimization based on the Nelder–Mead method.
-Optimization's Initial Step Size|The step size considered by the Nelder–Mead method.
-Optimization Cycles|For how many cycles to perform localization.
+| Parameter    | Description                                                                                                                                                                                                                                               |
+|--------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| *out_path*   | Export folder where to store the archived results. All evaluated iterations of a specific scenario (e.g. "T (1,6,8,9,12,16) 15") are stored as a group in a single .zip archive.                                                                          |
+| *db_path*    | DB folder containing all measurements. Each evaluated scenario that is considered in the index batch file (e.g. "T (1,6,8,9,12,16) 15") should have a single corresponding DB file *db_path* that includes the measurements for all evaluated iterations. |
+| *batch_path* | Path to the batch file containing all evaluated scenarios.                                                                                                                                                                                                |
+| *model*      | Type of ranging measurement (should correspond to the loaded DB file) [ble/uwb].                                                                                                                                                                          |
+| *contours*   | Number of contours to be used in the exported Wolfram plotting command.                                                                                                                                                                                   |
+| *min_m*      | Measurements above this threshold will not be considered during the localization. The effective neighbors are represented in yellow.                                                                                                                      |
+| *kn*         | The k closest neighbors to be considered for identifying the optimization order.                                                                                                                                                                          |
+| *pos_extent* | How far nodes can be randomly spawn during their initialization.                                                                                                                                                                                          |
+| *seed*       | Seed for any random values generated during the optimization.                                                                                                                                                                                             |
+| *end_iter*   | The ID of the last evaluated iteration in a DB file. Each DB file can contain multiple evaluation iterations (e.g. 100 for the case of #RSS_100#).                                                                                                        |
+| *threads*    | Number of optimization thread workers to be used.                                                                                                                                                                                                         |
+| *opt_iter*   | How deep each optimization worker will be searching for the optimal solution at each step.                                                                                                                                                                |
+| *max_t*      | A time threshold to be used per step optimization. Has a higher priority compared to the “Optimization Iterations per Thread”.                                                                                                                            |
+| *f_tol*      | Tolerance for the optimization based on the Nelder–Mead method.                                                                                                                                                                                           |
+| *step*       | The step size considered by the Nelder–Mead method.                                                                                                                                                                                                       |
+| *cycles*     | For how many cycles to perform localization.                                                                                                                                                                                                              |
 
 ----
 
