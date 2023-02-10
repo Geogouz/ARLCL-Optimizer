@@ -64,6 +64,9 @@
                     <descriptorRefs>
                         <descriptorRef>jar-with-dependencies</descriptorRef>
                     </descriptorRefs>
+                    <finalName>arlcl-optimizer</finalName>
+                    <appendAssemblyId>false</appendAssemblyId>
+                    <outputDirectory>./</outputDirectory>
                     <archive>
                         <manifest>
                             <addClasspath>true</addClasspath>

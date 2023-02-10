@@ -8,6 +8,11 @@ ARLCL-Optimizer is an application implementing the cooperative localization meth
 
 The application supports both Graphical (for single scenario executions) and Headless (for batch executions) modes.
 
+*Supported Models:*
+<br />
+- RSS-based ranging using Bluetooth Low Energy signals [BLE] (model's units are in meters)
+- Time-based ranging using Ultra-Wideband signals [UWB] (model's units are in centimeters)
+
 ## Ranging Database
 
 Depending on the execution mode, two different types of files can be used. GUI mode makes use of single database files (.rss or .smpl) containing the ranging measurements for a specific scenario. Headless mode makes use of an additional index file containing the scenario names of multiple database files.
@@ -92,11 +97,9 @@ An index file contains (per line) a scenario name available in the following in 
 ## GUI mode
 - Executes a cooperative localization optimization for the selected database of ranging measurements.
 
-The application may start by executing the provided run.bat or from CLI using
+The application may start by executing the provided run.bat or directly from CLI using
 
-`$ java --add-exports java.base/java.lang=ALL-UNNAMED --add-exports java.desktop/sun.awt=ALL-UNNAMED --add-exports java.desktop/sun.java2d=ALL-UNNAMED -jar path\to\arlcl-optimizer.jar`
-
-In both cases one needs to set the correct "path\to\arlcl-optimizer.jar"
+`$ java --add-exports java.base/java.lang=ALL-UNNAMED --add-exports java.desktop/sun.awt=ALL-UNNAMED --add-exports java.desktop/sun.java2d=ALL-UNNAMED -jar arlcl-optimizer.jar`
 
 ### Parameters
 
@@ -130,7 +133,7 @@ For batch execution, the application may start by executing the jar and passing 
 
 Example command:
 
-`$ java -jar "path/to/arlcl-optimizer.jar" out_path="path/to/the/results/folder/" db_path="path/to/the/db/folder/" db_idx_path="path/to/the/db-index/folder/" scenarios_path="D:\\OneDrive - Universitaet Bern\\Workspace\\Swarm Positioning\\UWB\\various\\Listed Scenarios\\35,40_nodes.txt" seed=3 end_iter=100 opt_iter=1000 threads=1 cycles=50 f_tol=1e-2 max_t=10000 kn=6 min_m=60 contours=30 step=10`
+`$ java -jar "arlcl-optimizer.jar" out_path="Export" db_path="Examples/BLE-RSS_Evaluation-Samples_Lecture-Room (Examples)/DB" batch_path="Examples/BLE-RSS_Evaluation-Samples_Lecture-Room (Examples)/Batch.txt" model=ble contours=30 min_m=95 kn=6 pos_extent=10 seed=0 end_iter=100 threads=1 opt_iter=1000 max_t=1000000 f_tol=1e-2 step=100 cycles=50`
 
 ----
 

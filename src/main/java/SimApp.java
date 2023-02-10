@@ -144,9 +144,9 @@ public class SimApp extends Frame {
             // Get each argument
             HashMap<String, String> str_arguments = new HashMap<>();
 
-            String input_rss_folder_path = null;
-            String eval_scenarios_path = null;
-            int scenario_id = 0;
+            String input_db_folder_path = null;
+            String eval_batch_path = null;
+            int scenario_id_in_batch = 0;
 
             // This section is for parsing the arguments when these come with the equality sign
             try {
@@ -155,30 +155,42 @@ public class SimApp extends Frame {
                     str_arguments.put(key_value_pair[0], key_value_pair[1]);
                 }
 
-                // Set the seed
+                SimApp.outpath_results_folder_path = str_arguments.get("out_path");
+                SimApp.plotResolution = Integer.parseInt(str_arguments.get("contours"));
+                SimApp.min_effective_measurement = Integer.parseInt(str_arguments.get("min_m"));
+                SimApp.kNearestNeighbours_for_BeliefsStrength = Integer.parseInt(str_arguments.get("kn"));
+                SimApp.initial_Map_Extend = Integer.parseInt(str_arguments.get("pos_extent"));
+                SimApp.ending_eval_iteration = Integer.parseInt(str_arguments.get("end_iter"));
+                SimApp.threads = Integer.parseInt(str_arguments.get("threads"));
+                SimApp.optimization_iterations_per_thread = Integer.parseInt(str_arguments.get("opt_iter"));
+                SimApp.max_optimization_time_per_thread = Integer.parseInt(str_arguments.get("max_t"));
+                SimApp.ftol = Double.parseDouble("1e-" + str_arguments.get("ftol"));
+                SimApp.step_size = Double.parseDouble(str_arguments.get("step"));
+                SimApp.optimization_cycles = Integer.parseInt(str_arguments.get("cycles"));
+
+                String selected_model = str_arguments.get("model");
+                if (selected_model.matches("ble")){
+                    SimApp.ble_model = true;
+                    SimApp.uwb_model = false;
+                }
+                else if (selected_model.matches("uwb")){
+                    SimApp.uwb_model = true;
+                    SimApp.ble_model = false;
+                }
+
+                SimApp.results_per_step = false;
+                SimApp.results_per_cycle = true;
+
+                // Get and set the seed
                 SimApp.seed = Long.parseLong(str_arguments.get("seed"));
                 SimApp.random.setSeed(SimApp.seed);
 
-                SimApp.ftol = Double.parseDouble("1e-" + str_arguments.get("ftol"));
-                SimApp.outpath_results_folder_path = str_arguments.get("out_path");
-                input_rss_folder_path = str_arguments.get("rss_db_path");
-                eval_scenarios_path = str_arguments.get("scenarios_path");
-                scenario_id = Integer.parseInt(str_arguments.get("scenario_id"));
-                SimApp.ending_eval_iteration = Integer.parseInt(str_arguments.get("end_iter"));
-                SimApp.optimization_iterations_per_thread = Integer.parseInt(str_arguments.get("opt_iter"));
-                SimApp.max_optimization_time_per_thread = Integer.parseInt(str_arguments.get("max_opt_time"));
-                SimApp.threads = Integer.parseInt(str_arguments.get("threads"));
-                SimApp.optimization_cycles = Integer.parseInt(str_arguments.get("cycles"));
-                SimApp.kNearestNeighbours_for_BeliefsStrength = Integer.parseInt(str_arguments.get("k_Beliefs"));
-                SimApp.min_effective_measurement = Integer.parseInt(str_arguments.get("min_effect"));
-                SimApp.plotResolution = Integer.parseInt(str_arguments.get("plot_res"));
-                SimApp.step_size = Double.parseDouble(str_arguments.get("step"));
-                SimApp.results_per_step = false;
-                SimApp.results_per_cycle = true;
+                input_db_folder_path = str_arguments.get("db_path");
+                eval_batch_path = str_arguments.get("batch_path");
+                scenario_id_in_batch = Integer.parseInt(str_arguments.get("scenario_id"));
             }
             catch (Exception e) {
                 e.printStackTrace();
-                System.out.println("Zip exists already. Exiting");
                 // At this point we can close the program
                 System.exit(0);
             }
@@ -187,7 +199,7 @@ public class SimApp extends Frame {
             SimApp.evaluated_iteration = 0;
 
             // Parse the evaluation scenarios from the combos file
-            eval_scenario = parseEvalScenarios(scenario_id, eval_scenarios_path);
+            eval_scenario = parseEvalScenarios(scenario_id_in_batch, eval_batch_path);
 
             // This section is for setting our hardcoded minimal arguments
             String deployment_type = eval_scenario[0];
@@ -195,7 +207,7 @@ public class SimApp extends Frame {
             String sample_size = eval_scenario[2];
 
             SimApp.clean_evaluated_scenario_name = deployment_type + "_" + swarmIDs + "_" + sample_size;
-            SimApp.input_file_path = input_rss_folder_path + SimApp.clean_evaluated_scenario_name + ".smpl";
+            SimApp.input_file_path = input_db_folder_path + SimApp.clean_evaluated_scenario_name + ".smpl";
 
             String zip_name = SimApp.outpath_results_folder_path + SimApp.clean_evaluated_scenario_name + ".zip";
             // Check to see if there is any .zip file so that we can cancel the process completely
@@ -526,7 +538,7 @@ public class SimApp extends Frame {
 
         // This Section is for the "Optimization's parameters:"
         final int min_effective_rss_LabelArea_y = r2_y + small_text_height;
-        SimApp.min_effective_measurement_value_LabelArea = new CustomTextArea("Min Effective Measurement\n(Units depend on the ranging technology):",1,1, TextArea.SCROLLBARS_NONE);
+        SimApp.min_effective_measurement_value_LabelArea = new CustomTextArea("Min Effective Measurement\n*(Units depend on the ranging technology):",1,1, TextArea.SCROLLBARS_NONE);
         SimApp.min_effective_measurement_value_LabelArea.setBounds(c3_x, min_effective_rss_LabelArea_y, c3_content_width, medium_text_height);
         SimApp.min_effective_measurement_value_LabelArea.setBackground(Color.lightGray);
         SimApp.min_effective_measurement_value_LabelArea.setEnabled(true);
