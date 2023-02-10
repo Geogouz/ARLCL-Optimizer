@@ -12,7 +12,7 @@ The application supports both Graphical (for single scenario executions) and Hea
 
 Depending on the execution mode, two different types of files can be used. GUI mode makes use of single database files (.rss or .smpl) containing the ranging measurements for a specific scenario. Headless mode makes use of an additional index file containing the scenario names of multiple database files.
 
-This repo provides sample databases and index files.
+This repo provides sample databases and index files (see Examples).
 The complete databases used for the evaluation of ARLCL are also openly available:
 
 Complete Evaluation Dataset for BLE:
