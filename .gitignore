@@ -1,9 +1,0 @@
-# Project exclude paths
-/out/
-.rss
-/target/
-/.idea/
-/tools/
-.gitignore
-eval_scheduler.sh
-ARLCL-Optimizer.iml
