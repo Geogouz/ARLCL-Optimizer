@@ -268,123 +268,6 @@ public class Core {
         return parsed_measurements != 0;
     }
 
-    static void resumeSwarmPositioning() {
-
-        SimApp.appendToTextArea("Position Estimations:");
-
-        // Check if there is no remaining step from previous unfinished cycles
-        if (SimApp.temp_OrderedRemoteNodeIDs.size()==0){
-
-            // We start a new Cycle. At this point, sortNodesByBeliefsStrength() has already ordered the nodes.
-            SimApp.temp_OrderedRemoteNodeIDs.addAll(SimApp.OrderedByBeliefsStrength_NodeIDs);
-
-            // Update also the progress counters
-            SimApp.cycleCounter = SimApp.cycleCounter + 1;
-            SimApp.stepCounter = 0;
-        }
-
-        // Check if the user wants to get results per step
-        if (SimApp.results_per_step){
-
-            SimApp.stepCounter = SimApp.stepCounter + 1;
-
-            Node currentNode = SimApp.nodeID_to_nodeObject.get(SimApp.temp_OrderedRemoteNodeIDs.remove(0));
-            //System.out.println("Removing: " + currentNode + " TempList: " + RemoteNodeIDbyPopularity_tracker.size() + " OriginalList: " + NodeIDbyPopularity_originalList.size());
-
-            //currentNode = 6; // Set this manually for debugging purposes
-            double[] new_current_position = new double[0];
-            
-            if (SimApp.uwb_model){
-                new_current_position = MathEngineUWB.findBestPositionForCurrentNode(
-                        currentNode, SimApp.cycleCounter, SimApp.stepCounter);
-            }
-            else if (SimApp.ble_model){
-                new_current_position = MathEngineBLE.findBestPositionForCurrentNode(
-                        currentNode, SimApp.cycleCounter, SimApp.stepCounter);
-            }
-
-            if (new_current_position != null){
-                currentNode.updateCurrentNodePos(new_current_position[0], new_current_position[1]);
-            }
-
-            MapField.updateMapExtent();
-
-            publishResultsInGUI(
-                    SimApp.cycleCounter, SimApp.stepCounter, currentNode,
-                    false, SimApp.export_ProductLikelihood_WolframPlot);
-
-            // To use this for debugging whenever needed
-//            if (resetAll_CurrentNodePos_to_TruePos){
-//                reset_CurrentNodePos_to_TruePos();
-//            }
-        }
-        // Being here means that the user wants to get results per cycle
-        else {
-            boolean last_step = false;
-            int remaining_steps = SimApp.temp_OrderedRemoteNodeIDs.size();
-
-            for (int step = 0; step<remaining_steps; step++){
-
-                SimApp.stepCounter = SimApp.stepCounter + 1;
-
-                int currentNodeID = SimApp.temp_OrderedRemoteNodeIDs.remove(0);
-                Node currentNode = SimApp.nodeID_to_nodeObject.get(currentNodeID);
-
-                // Check if after removing this node, we ended up at the last optimization step
-                if (SimApp.temp_OrderedRemoteNodeIDs.size()==0){
-                    last_step = true;
-                }
-
-                //System.out.println("Removing: " + currentNodeID + " TempList: " + RemoteNodeIDbyPopularity_tracker.size() + " OriginalList: " + NodeIDbyPopularity_originalList.size());
-
-                double[] new_current_position = new double[0];
-
-                if (SimApp.uwb_model){
-                    new_current_position = MathEngineUWB.findBestPositionForCurrentNode(
-                            SimApp.nodeID_to_nodeObject.get(currentNodeID), SimApp.cycleCounter, SimApp.stepCounter);
-                }
-                else if (SimApp.ble_model){
-                    new_current_position = MathEngineBLE.findBestPositionForCurrentNode(
-                            SimApp.nodeID_to_nodeObject.get(currentNodeID), SimApp.cycleCounter, SimApp.stepCounter);
-                }
-                
-                if (new_current_position != null){
-                    currentNode.updateCurrentNodePos(new_current_position[0], new_current_position[1]);
-                }
-
-                MapField.updateMapExtent();
-
-                // Check whether we are currently at the last step
-                if (last_step){
-                    // We use the same optimization function to publish the likelihood at the end of a cycle
-                    publishResultsInGUI(
-                            SimApp.cycleCounter, SimApp.stepCounter, currentNode,
-                            true, SimApp.export_ProductLikelihood_WolframPlot);
-                }
-
-                // Check whether the requested cycles have been reached.
-                if (SimApp.optimization_cycles < SimApp.cycleCounter){
-                    System.out.println("Current finished cycle: " + SimApp.optimization_cycles);
-                    break;
-                }
-            }
-        }
-
-        SimApp.appendToTextArea("Map Extent: (" + MapField.global_minPlotX + ", " + MapField.global_maxPlotX + "), (" + MapField.global_minPlotY + ", " + MapField.global_maxPlotY + ")");
-        SimApp.appendToTextArea("=========== Optimization Finished ===========");
-
-        // If we are running in headless mode and the cycles have finished,
-        // we should stop nicely the current optimization process as we would do in GUI mode by pressing the Stop
-        if (SimApp.optimization_cycles <= SimApp.cycleCounter){
-            // Stop the optimization right after the chosen amount of cycles
-//            SimApp.stopOptimization();
-
-            // Stop the auto-resumer for the current optimization process
-            SimApp.scheduled_auto_resumer.cancel(true);
-            SimApp.scheduler.shutdown();
-        }
-    }
-
     static void resumeSwarmPositioningInGUIMode() {
 
         // Check if the requested cycles have been reached. Since counting started from 0, we use equality to check.
@@ -447,12 +330,12 @@ public class Core {
             // If the auto resumer is activated, rendering a new chart on every step might be too difficult for the GUI
             // We use the same optimization function to publish the likelihood at the end of a cycle
             if (SimApp.auto_resumer_btn.getState()){
-                publishResultsInGUI(
+                publishResults(
                         SimApp.cycleCounter, SimApp.stepCounter, currentNode, cycle_end, export_plot);
             }
             else{
                 // Auto resumer is not activated. We have enough rendering time available to draw the step
-                publishResultsInGUI(
+                publishResults(
                         SimApp.cycleCounter, SimApp.stepCounter, currentNode,true, export_plot);
             }
 
@@ -500,7 +383,7 @@ public class Core {
                 // Check whether we are currently at the last step
                 if (last_step){
                     // We use the same optimization function to publish the likelihood at the end of a cycle
-                    publishResultsInGUI(
+                    publishResults(
                             SimApp.cycleCounter, SimApp.stepCounter, currentNode,
                             true, SimApp.export_ProductLikelihood_WolframPlot);
                 }
@@ -511,12 +394,12 @@ public class Core {
         SimApp.appendToTextArea("=========== Optimization Finished ===========");
     }
 
-    static void publishResultsInGUI(int cycle, int step, Node currentNode,
-                                    boolean draw_cycle_chart, boolean export_plot) {
+    static void publishResults(int cycle, int step, Node currentNode,
+                               boolean draw_cycle_chart, boolean export_plot) {
 
 //        System.out.println("Publishing: " + SimApp.clean_evaluated_scenario_name + " Cycle:" + cycle);
 
-        if (export_plot){
+        if (export_plot && SimApp.plotContours != 0){
             String NodePos_CMD_filename = Paths.get(
                     SimApp.output_iteration_results_folder_path,
                     "Positions_c" + cycle + "_s" + step + "_n" + currentNode.id + ".txt"
@@ -602,48 +485,11 @@ public class Core {
         }
     }
 
-    static void publishResultsInHeadlessMode(int cycle, int step, Node currentNode){
-
-        System.out.println("Publishing: " + SimApp.clean_evaluated_scenario_name + " Cycle:" + cycle);
-
-        if (cycle == SimApp.optimization_cycles || cycle == 50 || cycle == 100 || cycle == 150 || cycle == 200 || cycle == 250){
-
-            String NodePos_CMD_filename = Paths.get(
-                    SimApp.output_iteration_results_folder_path,
-                    "Positions_c" + cycle + "_s" + step + "_n" + currentNode.id + ".txt"
-            ).toString();
-
-            String NodePos_Plot_filename = Paths.get(
-                    SimApp.output_iteration_results_folder_path,
-                    "Positions_c" + cycle + "_s" + step + "_n" + currentNode.id + ".jpeg"
-            ).toString();
-
-            ArrayList<String>[] mathematica_plot_components = collectComponentsForWolframPlotSections(currentNode);
-
-            String ProductLikelihood_WolframCMD = "";
-
-            // Create the Wolfram command
-            ProductLikelihood_WolframCMD = buildFunctionSectionOfWolframCommand(mathematica_plot_components[1]);
-
-            // Execute the Wolfram CMD that will generate the Canvas contents (i.e. the node's positions)
-            String wolfram_export_command;
-
-            // Generate the final Wolfram command which we need to execute
-            wolfram_export_command = mergeLikelihoodComponentsToWolframFunction(
-                    ProductLikelihood_WolframCMD + mathematica_plot_components[0].get(0),
-                    NodePos_Plot_filename
-            );
-
-            // Export the String to a file
-            SimApp.writeString2File(NodePos_CMD_filename, wolfram_export_command);
-        }
-    }
-
     public static void setLikelihoodFunction(Node current_node, boolean odd_cycles) {
 
         //        System.out.println("Building the canvas");
 
-        boolean contours_on = SimApp.plotResolution != 0;
+        boolean contours_on = SimApp.plotContours != 0;
 
         if (odd_cycles){
             // This means that we need to clear any previous odd charts
@@ -763,7 +609,7 @@ public class Core {
                 new DefaultContourColoringPolicy(myColorMapper),
                 SimApp.chart_plot_size,
                 SimApp.chart_plot_size,
-                SimApp.plotResolution
+                SimApp.plotContours
         );
     }
 
@@ -943,23 +789,9 @@ public class Core {
                 "FrameTicksStyle -> Directive[Black, 15]," +
                 "GridLines -> Automatic," +
                 "GridLinesStyle -> Directive[AbsoluteThickness[0.5], Black]," +
-                "Contours -> {Automatic, " + SimApp.plotResolution + "}];\n\n";
+                "Contours -> {Automatic, " + SimApp.plotContours + "}];\n\n";
 
         return plot_cmd;
-    }
-
-    private static String mergeLikelihoodComponentsToWolframFunction(String cmd_to_export, String filename){
-
-//        System.out.println("Likelihood components collected. Merging function.");
-
-        // Make a check here to see if the list containing the effective_nodes has the same size as the entire Node db-1
-        // This means that there is no non-Effective Node. Hence, we need to exclude Plot B
-        if (SimApp.effective_remoteNodes.size() == (SimApp.nodeID_to_nodeObject.size()-1)){
-            return cmd_to_export + "\nExport[\"export/" + filename + "\", Show[model, plotA, plotC], ImageSize -> {1600, 1000}, \"CompressionLevel\" -> 0]";
-        }
-        else{
-            return cmd_to_export + "\nExport[\"export/" + filename + "\", Show[" + "model, " + "plotA, plotB, plotC], ImageSize -> {1600, 1000}, \"CompressionLevel\" -> 0]";
-        }
     }
 
     private static ArrayList[] collectComponentsForWolframPlotSections(Node current_node){

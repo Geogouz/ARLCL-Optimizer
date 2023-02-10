@@ -1,6 +1,5 @@
 import org.jzy3d.chart.ContourChart;
 import org.jzy3d.plot3d.rendering.canvas.Quality;
-
 import javax.imageio.ImageIO;
 import javax.swing.*;
 import java.awt.*;
@@ -16,15 +15,11 @@ import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.List;
-import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
-
-import static java.util.concurrent.TimeUnit.MILLISECONDS;
-import static java.util.concurrent.TimeUnit.SECONDS;
 
 public class SimApp extends Frame {
 
@@ -34,8 +29,6 @@ public class SimApp extends Frame {
     static Container chart_component_container_even = new Container();
     static Container chart_component_container_odd = new Container();
     static int chart_plot_size;
-
-    // This data structure will store each evaluation case
     static String[] eval_scenario;
     static boolean headless_mode;
     static boolean results_per_step;
@@ -45,9 +38,7 @@ public class SimApp extends Frame {
     static boolean export_ProductLikelihood_WolframPlot;
     static boolean stop_optimization;
     static boolean resume_flag;
-    static int plotResolution;
-
-    // Optimization's Parameters
+    static int plotContours;
     static int min_effective_measurement;
     static int kNearestNeighbours_for_BeliefsStrength;
     static int initial_Map_Extend;
@@ -65,12 +56,10 @@ public class SimApp extends Frame {
     static String input_file_extension;
     static String outpath_results_folder_path;
     static String output_iteration_results_folder_path;
-    // Create a map having <Node IDs, Node Objects> as <key, value> pairs
     static LinkedHashMap<Integer, Node> nodeID_to_nodeObject;
     static List<Integer> OrderedByBeliefsStrength_NodeIDs;
     static List<Integer> temp_OrderedRemoteNodeIDs;
     static List<Integer> OrderedByLastCycleOrientation_NodeIDs;
-
     static ArrayList<Integer> effective_remoteNodes;
     static DecimalFormat two_decimals_formatter = new DecimalFormat("#.##");
     static WnAdapter window_adapter;
@@ -119,14 +108,12 @@ public class SimApp extends Frame {
     static CustomCheckbox ble_model_btn;
     static CustomCheckbox uwb_model_btn;
     static CustomCheckbox export_ProductLikelihood_WolframPlot_function_btn;
-    static Thread t1;
     static Thread controller_thread;
     static SimpleDateFormat day_formatter = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss");
     static ScheduledExecutorService scheduler;
     static ScheduledFuture<?> scheduled_auto_resumer;
     static int cycleCounter;
     static int stepCounter;
-
     final static Random random = new Random();
 
     public static void run(String[] argv){
@@ -156,7 +143,7 @@ public class SimApp extends Frame {
                 }
 
                 SimApp.outpath_results_folder_path = str_arguments.get("out_path");
-                SimApp.plotResolution = Integer.parseInt(str_arguments.get("contours"));
+                SimApp.plotContours = Integer.parseInt(str_arguments.get("contours"));
                 SimApp.min_effective_measurement = Integer.parseInt(str_arguments.get("min_m"));
                 SimApp.kNearestNeighbours_for_BeliefsStrength = Integer.parseInt(str_arguments.get("kn"));
                 SimApp.initial_Map_Extend = Integer.parseInt(str_arguments.get("pos_extent"));
@@ -309,6 +296,7 @@ public class SimApp extends Frame {
                 zipOut.closeEntry();
             }
             File[] children = fileToZip.listFiles();
+            assert children != null;
             for (File childFile : children) {
                 zipFile(childFile, fileName + "/" + childFile.getName(), zipOut);
             }
@@ -724,47 +712,6 @@ public class SimApp extends Frame {
         SimApp.optimizationParameters_LabelArea.setBounds(c3_x, r2_y, c3_content_width, optimizationSettings_Label_height);
         add((TextArea) SimApp.optimizationParameters_LabelArea.getTextArea());
 
-
-        // TODO: Experimentation options
-        // This Section is for the Optimization's Order
-//        final int optimization_order_Label_y = r2_y;
-//        CheckboxGroup optimization_order_group = new CheckboxGroup();
-//        Sim_App.spatial_direction_btn = new CustomCheckbox("Direction", false, optimization_order_group);
-//        Sim_App.spatial_direction_btn.setBounds(1485, 846, 70, small_textfield_height);
-//        add((Checkbox) Sim_App.spatial_direction_btn.getCheckbox());
-//
-//        Sim_App.rss_density_check_btn = new CustomCheckbox("Density", true, optimization_order_group);
-//        Sim_App.rss_density_check_btn.setBounds(1485, 866, 70, small_textfield_height);
-//        add((Checkbox) Sim_App.rss_density_check_btn.getCheckbox());
-//
-//        Sim_App.optimization_order_Label = new CustomTextArea("Opt. Order:",2,1, TextArea.SCROLLBARS_NONE);
-//        Sim_App.optimization_order_Label.setBackground(Color.lightGray);
-//        Sim_App.optimization_order_Label.setFont(new Font("Arial", Font.BOLD, 13));
-//        Sim_App.optimization_order_Label.setEnabled(true);
-//        Sim_App.optimization_order_Label.setFocusable(false);
-//        Sim_App.optimization_order_Label.setEditable(false);
-//        Sim_App.optimization_order_Label.setBounds(c2_x, optimization_order_Label_y, 90, r2_height);
-//        add((TextArea) Sim_App.optimization_order_Label.getTextArea());
-
-
-
-        // This Section is for the Project Name/db Setup
-//        String timeStamp = new SimpleDateFormat("yyyyMMddHHmmss").format(new Date());
-//        projectName_inputTextArea = new CustomTextField(timeStamp);
-//        Sim_App.projectName_LabelArea = new CustomTextArea("Export to Folder:",1,1, TextArea.SCROLLBARS_NONE);
-//        Sim_App.projectName_LabelArea.setBounds(c3_x, export_ProductLikelihood_Label_y, normal_gap, small_text_height);
-//        Sim_App.projectName_LabelArea.setBackground(Color.lightGray);
-//        Sim_App.projectName_LabelArea.setEnabled(true);
-//        Sim_App.projectName_LabelArea.setFocusable(false);
-//        add((TextArea) Sim_App.projectName_LabelArea.getTextArea());
-//
-//        Sim_App.projectName_inputTextField = new CustomTextField(Sim_App.clean_evaluated_scenario_name);
-//        Sim_App.projectName_inputTextField.setBounds(c3_x + normal_gap, export_ProductLikelihood_Label_y, c3_content_width - normal_gap, small_text_height);
-//        Sim_App.projectName_inputTextField.addTextListener(new projectName_inputTextArea_Ensurer());
-//        add((TextField) Sim_App.projectName_inputTextField.getTextField());
-
-
-
         setSize(window_width, window_height);
         setLocation(10,10);
 
@@ -894,87 +841,6 @@ public class SimApp extends Frame {
         SimApp.outputTerminal.setText("");
     }
 
-    static void setPropertiesAsAvailable(boolean enabled){
-
-        // Update the map-exporting toggler's state
-        if (!SimApp.headless_mode){
-            SimApp.results_per_step_btn.setEnabled(enabled);
-            SimApp.results_per_cycle_btn.setEnabled(enabled);
-        }
-
-        SimApp.kNearestNeighbours_for_BeliefsStrength_inputTextField.setEnabled(enabled);
-        SimApp.max_optimization_time_per_thread_inputTextField.setEnabled(enabled);
-        SimApp.min_effective_measurement_inputTextField.setEnabled(enabled);
-
-        SimApp.plotResolution_inputTextField.setEnabled(enabled);
-
-        if (!SimApp.headless_mode){
-            SimApp.export_ProductLikelihood_WolframPlot_function_btn.setEnabled(enabled);
-        }
-    }
-
-    static private void resume(){
-
-        // Execute everything in a new thread to avoid coming in conflict with the GUI's thread
-        SimApp.t1 = new Thread(() -> {
-            SimApp.go_Toggle_btn.setEnabled(false);
-
-            String results_per_selection;
-
-            // Get the state of the results_per CustomCheckbox
-            if (SimApp.results_per_cycle){
-                results_per_selection = "Cycle";
-            }
-            else{
-                results_per_selection = "Step";
-            }
-
-            // If we are performing an optimization based on Density, we need to mention the utilised parameter
-            String kNN_for_beliefs_strength_check = "\n";
-            if (SimApp.headless_mode){
-                kNN_for_beliefs_strength_check = "\nkNN to consider for the Beliefs-Strength check: " + SimApp.kNearestNeighbours_for_BeliefsStrength + " Neighbors\n";
-            }
-
-            // If we are exporting also Wolfram features, we need to mention which these are
-            String likelihoods_export = "None]\n";
-            if (SimApp.export_ProductLikelihood_WolframPlot){
-                likelihoods_export = "Wolfram Plot]\n";
-            }
-
-            String summary_msg ="\n=========== Optimization Initiated ===========" +
-                    "\nExport folder: " + SimApp.output_iteration_results_folder_path +
-                    "\nScenario: " + SimApp.clean_evaluated_scenario_name +
-                    "\nEvaluated iteration in scenario: " + SimApp.evaluated_iteration +
-                    "\nMin effective measurement value: " + SimApp.min_effective_measurement + "units" +
-                    "\nExtent of positions initialization: " +  SimApp.initial_Map_Extend +
-                    "\nRandom seed: " +  SimApp.seed +
-                    "\nThread workers: " +  SimApp.threads +
-                    "\nOptimization iterations per thread: " + SimApp.optimization_iterations_per_thread +
-                    "\nMax step optimization runtime (per thread): " + SimApp.max_optimization_time_per_thread +
-                    "\nOptimization's ftol: " + SimApp.f_tol +
-                    "\nOptimization's step size: " + SimApp.step_size +
-                    "\nStop Cycle: " + SimApp.optimization_cycles +
-                    "\nResults per: " + results_per_selection +
-                    kNN_for_beliefs_strength_check +
-                    "Likelihoods export: [" + likelihoods_export;
-
-            SimApp.appendToTextArea(summary_msg);
-
-            setPropertiesAsAvailable(false);
-
-            try {
-                System.out.println("Resuming Headless Positioning");
-                Core.resumeSwarmPositioning();
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
-
-            setPropertiesAsAvailable(true);
-            SimApp.go_Toggle_btn.setEnabled(true);
-        });
-        SimApp.t1.start();
-    }
-
     private static void finishOptimization() {
         changeConfigurationPanelEnabledState(true);
         SimApp.go_Toggle_btn.setClicked(false);
@@ -1005,7 +871,7 @@ public class SimApp extends Frame {
                 "\nEvaluated iteration in scenario: " + SimApp.evaluated_iteration +
                 "\nMin effective measurement value: " + SimApp.min_effective_measurement + "units" +
                 "\nExtent of positions initialization: " +  SimApp.initial_Map_Extend +
-                "\nRandom seed: " +  SimApp.seed +
+                "\nRandomness seed: " +  SimApp.seed +
                 "\nThread workers: " +  SimApp.threads +
                 "\nOptimization iterations per thread: " + SimApp.optimization_iterations_per_thread +
                 "\nMax step optimization runtime (per thread): " + SimApp.max_optimization_time_per_thread +
@@ -1027,7 +893,7 @@ public class SimApp extends Frame {
         SimApp.ble_model = SimApp.ble_model_btn.getState();
         SimApp.uwb_model = SimApp.uwb_model_btn.getState();
         SimApp.export_ProductLikelihood_WolframPlot = SimApp.export_ProductLikelihood_WolframPlot_function_btn.getState();
-        SimApp.plotResolution = Integer.parseInt(SimApp.plotResolution_inputTextField.getText());
+        SimApp.plotContours = Integer.parseInt(SimApp.plotResolution_inputTextField.getText());
 
         // Values
         SimApp.min_effective_measurement = Integer.parseInt(SimApp.min_effective_measurement_inputTextField.getText());
@@ -1253,7 +1119,7 @@ public class SimApp extends Frame {
                 resetTextArea();
                 System.gc();
 
-                //System.out.println(evaluated_scenario_name + " database in " + input_file_path + " loaded."); // TODO: Add it on terminal
+                //System.out.println(evaluated_scenario_name + " database in " + input_file_path + " loaded.");
             }
         }
     }
@@ -1349,7 +1215,6 @@ public class SimApp extends Frame {
             }
         }
     }
-
 
     static private boolean handleDirectoriesHeadless() {
         // On the very first iteration, ensure that folder structure is as supposed to be
