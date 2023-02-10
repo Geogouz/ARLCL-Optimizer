@@ -20,9 +20,9 @@ Depending on the execution mode, two different types of files can be used. GUI m
 This repo provides sample databases and index files (see Examples).
 The complete databases used for the evaluation of ARLCL are also openly available:
 
-Complete Evaluation Dataset for BLE:
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.7552462.svg)](https://doi.org/10.5281/zenodo.7552462)
-
+Complete Evaluation Dataset for BLE : [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.7552462.svg)](https://doi.org/10.5281/zenodo.7552462)
+<br />
+Complete Evaluation Dataset for UWB: To be released
 
 For the creation of new database files and to support the resulted localization performance, the structure of a database file needs to be specific and contain a) for each node, the positions' ground truth and b) for each pair, the ranging measurement (dBm/time) used by arlcl and the distance measurement (cm) used by the baselines.
 
@@ -107,7 +107,7 @@ The application may start by executing the provided run.bat or directly from CLI
 |-------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------|
 | Results per                               | Optimization state after which results shall be presented [Step/Cycle].                                                              |
 | Rang. Model                               | Type of ranging measurement (should correspond to the loaded DB file) [BLE/UWB].                                                     |
-| Export function                           | For storing the likelihood function as a Wolfram plot.                                                                               |
+| Export function                           | For storing the likelihood function as a Wolfram plot (Free account at https://www.wolframcloud.com/).                               |
 | Contours                                  | Number of contours to be drawn. Setting this to 0 will draw a 3D plot (Used for 3D localization).                                    |
 | Min Effective Measurement                 | Measurements above this threshold will not be considered during the localization. The effective neighbors are represented in yellow. |
 | k Nearest Nodes for Effectiveness Check   | The k closest neighbors to be considered for identifying the optimization order.                                                     |
@@ -143,7 +143,7 @@ The user needs to configure and call sequentially the provided batch-run.bat, or
 | *batch_path*  | Path to the batch file containing all evaluated scenarios.                                                                                                                                                                                                |
 | *scenario_id* | Index (i.e. line number) of the scenario in the batch file to evaluate. An automated (and possibly parallel) batch execution of multiple scenarios would require that this ID is set dynamically.                                                         |
 | *model*       | Type of ranging measurement (should correspond to the loaded DB file) [ble/uwb].                                                                                                                                                                          |
-| *contours*    | Number of contours to be used in the exported Wolfram plotting command.                                                                                                                                                                                   |
+| *contours*    | Number of contours to be used in the exported Wolfram plotting command. (Free account at https://www.wolframcloud.com/)                                                                                                                                                                                  |
 | *min_m*       | Measurements above this threshold will not be considered during the localization. The effective neighbors are represented in yellow.                                                                                                                      |
 | *kn*          | The k closest neighbors to be considered for identifying the optimization order.                                                                                                                                                                          |
 | *pos_extent*  | How far nodes can be randomly spawn during their initialization.                                                                                                                                                                                          |

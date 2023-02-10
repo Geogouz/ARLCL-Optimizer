@@ -540,7 +540,7 @@ public class Core {
         }
 
         // We draw only the state at the end of a cycle. This limitation is due to the limited drawing speed.
-        if (draw_cycle_chart){
+        if (draw_cycle_chart && !SimApp.headless_mode){
             drawCycleChart(currentNode);
         }
     }
@@ -935,7 +935,7 @@ public class Core {
         plot_cmd = plot_cmd + "model = ContourPlot[r[distanceX, distanceY], " +
                 "{distanceX, " + MapField.global_minPlotX + ", " + MapField.global_maxPlotX + "}, " +
                 "{distanceY, " + MapField.global_minPlotY + ", " + MapField.global_maxPlotY + "}, " +
-                "PlotPoints -> {" + Integer.valueOf(SimApp.plotResolution_inputTextField.getText()) + ", " + Integer.valueOf(SimApp.plotResolution_inputTextField.getText()) + "}, " +
+                "PlotPoints -> {100, 100}, " +
                 "MaxRecursion -> 1, " +
                 "PlotRange -> Full, " +
                 "ClippingStyle -> None, " +

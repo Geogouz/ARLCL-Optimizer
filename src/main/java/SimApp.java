@@ -213,7 +213,7 @@ public class SimApp extends Frame {
             String sample_size = SimApp.eval_scenario[2];
 
             SimApp.clean_evaluated_scenario_name = deployment_type + "_" + swarmIDs + "_" + sample_size;
-            SimApp.input_file_path = input_db_folder_path + SimApp.clean_evaluated_scenario_name + db_extension;
+            SimApp.input_file_path = Paths.get(input_db_folder_path,SimApp.clean_evaluated_scenario_name + db_extension).toString();
 
             String zip_name = Paths.get(SimApp.outpath_results_folder_path,SimApp.clean_evaluated_scenario_name, ".zip").toString();
             // Check to see if there is any .zip file so that we can cancel the process completely
@@ -266,7 +266,7 @@ public class SimApp extends Frame {
                     }
                 }
 
-                System.out.println("Start Optimizing");
+//                System.out.println("Proceeding to next optimization");
             } catch (Exception e) {
                 e.printStackTrace();
                 // At this point we can close the program
@@ -361,7 +361,7 @@ public class SimApp extends Frame {
     }
 
     private static void resetDataStructures() {
-        System.out.println("Preparing data structures");
+//        System.out.println("Preparing data structures");
         SimApp.min_cycle_time = Long.MAX_VALUE;
         SimApp.cycleCounter = 0;
         SimApp.stepCounter = 0;
@@ -922,7 +922,7 @@ public class SimApp extends Frame {
             String results_per_selection;
 
             // Get the state of the results_per CustomCheckbox
-            if (SimApp.headless_mode || !SimApp.results_per_step_btn.getState()){
+            if (SimApp.results_per_cycle){
                 results_per_selection = "Cycle";
             }
             else{
@@ -937,7 +937,7 @@ public class SimApp extends Frame {
 
             // If we are exporting also Wolfram features, we need to mention which these are
             String likelihoods_export = "None]\n";
-            if (SimApp.headless_mode || SimApp.export_ProductLikelihood_WolframPlot_function_btn.getState()){
+            if (SimApp.export_ProductLikelihood_WolframPlot){
                 likelihoods_export = "Wolfram Plot]\n";
             }
 
@@ -985,18 +985,18 @@ public class SimApp extends Frame {
     }
 
     private static void prepareInitializationLog() {
-        String results_per_selection;
+        String results_per_selection = null;
         // Get the state of the results_per_step_btn CustomCheckbox
-        if (SimApp.results_per_step_btn.getState()){
+        if (SimApp.results_per_step){
             results_per_selection = "Step";
         }
-        else{
+        else if (SimApp.results_per_cycle){
             results_per_selection = "Cycle";
         }
 
         String kNN_for_beliefs_strength_check = "\nkNN to consider for the Beliefs-Strength check: " + SimApp.kNearestNeighbours_for_BeliefsStrength + " Neighbors\n";
         String likelihoods_export = "None]\n";
-        if (SimApp.export_ProductLikelihood_WolframPlot_function_btn.getState()){
+        if (SimApp.export_ProductLikelihood_WolframPlot){
             likelihoods_export = "Wolfram Plot]\n";
         }
         String summary_msg ="\n=========== Optimization Initiated ===========" +
@@ -1362,7 +1362,7 @@ public class SimApp extends Frame {
                     SimApp.clean_evaluated_scenario_name
             ).toString();
 
-            System.out.println("Ensuring scenario root folder" + evaluated_scenario_destination_path);
+            System.out.println("Ensuring scenario root folder: " + evaluated_scenario_destination_path);
             // Then, ensure that the given project name exists as a folder
             SimApp.ensureFolder(evaluated_scenario_destination_path);
         }
