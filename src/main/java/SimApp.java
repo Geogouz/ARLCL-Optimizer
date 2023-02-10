@@ -202,7 +202,8 @@ public class SimApp extends Frame {
             SimApp.clean_evaluated_scenario_name = deployment_type + "_" + swarmIDs + "_" + sample_size;
             SimApp.input_file_path = Paths.get(input_db_folder_path,SimApp.clean_evaluated_scenario_name + db_extension).toString();
 
-            String zip_name = Paths.get(SimApp.outpath_results_folder_path,SimApp.clean_evaluated_scenario_name, ".zip").toString();
+            String zip_name = Paths.get(SimApp.outpath_results_folder_path,SimApp.clean_evaluated_scenario_name + ".zip").toString();
+            System.out.println(zip_name);
             // Check to see if there is any .zip file so that we can cancel the process completely
             File zip_file = new File(zip_name);
             if (zip_file.exists()){
@@ -330,7 +331,7 @@ public class SimApp extends Frame {
         try {
             Path in_path = Paths.get(eval_scenarios_path);
             Stream<String> file_stream = Files.lines(in_path);
-
+//            file_stream.forEach(System.out::println);
             String strLine = file_stream.skip(lines_to_skip).findFirst().get();
             System.out.println("Entry at line " + lines_to_skip + ": " + strLine);
             temp_args = new String[3];
