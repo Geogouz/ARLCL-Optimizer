@@ -1,3 +1,6 @@
+import org.jzy3d.maths.Coord3d;
+import org.jzy3d.maths.Range;
+
 public class MapField {
 
     static double global_minPlotX = 0.0D;
@@ -8,7 +11,37 @@ public class MapField {
     public MapField() {
     }
 
-    public static void update_MapExtent() {
+    public static double[] getBoxExtent(){
+        double box_extent_min_x;
+        double box_extent_max_x;
+        double box_extent_min_y;
+        double box_extent_max_y;
+
+        double map_width = global_maxPlotX - global_minPlotX;
+        double map_height = global_maxPlotY - global_minPlotY;
+
+        // Check which side is wider
+        if (map_width > map_height){
+            box_extent_min_x = global_minPlotX;
+            box_extent_max_x = global_maxPlotX;
+            box_extent_min_y = global_minPlotY;
+
+            // Since we have a wider width, we need to extend vertically in order to get end up with a box extent
+            box_extent_max_y = global_maxPlotY + map_width - map_height;
+        }
+        else{
+            box_extent_min_x = global_minPlotX;
+            box_extent_max_x = global_maxPlotX + map_height - map_width;;
+            box_extent_min_y = global_minPlotY;
+
+            // Since we have a wider width, we need to extend horizontally in order to get end up with a box extent
+            box_extent_max_y = global_maxPlotY;
+        }
+
+        return new double[]{box_extent_min_x, box_extent_max_x, box_extent_min_y, box_extent_max_y};
+    }
+
+    public static void updateMapExtent() {
 
         //Set a flag that will show the first iteration
         boolean first_check = true;
@@ -69,5 +102,31 @@ public class MapField {
         global_minPlotY = global_minPlotY - 1;
         global_maxPlotY = global_maxPlotY + 1;
 
+    }
+
+    public static double getMapMax() {
+        return Math.max(global_maxPlotX, global_maxPlotY);
+    }
+
+    public static double getMapMin() {
+        return Math.min(global_minPlotX, global_minPlotY);
+    }
+
+    public static Range getMinMaxRange() {
+        return new Range(0, 500); // For a fixed range
+//        return new Range(
+//                Math.min(global_minPlotX, global_minPlotY),
+//                Math.max(global_maxPlotX, global_maxPlotY)
+//        );
+    }
+
+    public static Range getXRange() {
+//        return new Range(0, 500); // For a fixed range
+        return new Range(global_minPlotX, global_maxPlotX);
+    }
+
+    public static Range getYRange() {
+//        return new Range(0, 500); // For a fixed range
+        return new Range(global_minPlotY, global_maxPlotY);
     }
 }
