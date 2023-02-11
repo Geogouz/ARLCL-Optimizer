@@ -6,7 +6,7 @@ Dimitris Xenakis, Antonio Di Maio, Torsten Braun
 
 ARLCL-Optimizer is an application implementing the cooperative localization method ARLCL: Anchor-free Ranging-Likelihood-based Cooperative Localization. This method has been developed by the Communication and Distributed Systems research group at the University of Bern.
 
-The application supports both Graphical (for single scenario executions) and Headless (for batch executions) modes.
+The application supports both Graphical (for single scenario executions) and Headless (useful for batch executions) modes.
 
 *Supported Models:*
 <br />
@@ -22,7 +22,7 @@ The complete databases used for the evaluation of ARLCL are also openly availabl
 
 Complete Evaluation Dataset for BLE : [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.7552462.svg)](https://doi.org/10.5281/zenodo.7552462)
 <br />
-Complete Evaluation Dataset for UWB: To be released
+Complete Evaluation Dataset for UWB: To be published
 
 For the creation of new database files and to support the resulted localization performance, the structure of a database file needs to be specific and contain a) for each node, the positions' ground truth and b) for each pair, the ranging measurement (dBm/time) used by arlcl and the distance measurement (cm) used by the baselines.
 
@@ -97,7 +97,7 @@ An index file contains (per line) a scenario name available in the following in 
 ## GUI mode
 - Executes a cooperative localization optimization for the selected database of ranging measurements.
 
-The application may start by executing the provided run.bat or directly from CLI using
+The application may start by executing the provided *arlcl-optimizer_gui-run.bat* or directly from CLI using
 
 `$ java --add-exports java.base/java.lang=ALL-UNNAMED --add-exports java.desktop/sun.awt=ALL-UNNAMED --add-exports java.desktop/sun.java2d=ALL-UNNAMED -jar arlcl-optimizer.jar`
 
@@ -130,7 +130,7 @@ www.youtube.com/watch?v=2DhkNLAwHkw
 ## Headless mode
 
 For batch execution (with results per cycle), the application may be launched in a scripted manner by executing the jar in headless mode and passing the selected parameters.
-The user needs to configure and call sequentially the provided batch-run.bat, or use directly the CLI according to the following example:
+The user needs to configure and call sequentially the provided *arlcl-optimizer_batch-run.bat*, or use directly the CLI according to the following example:
 
 `$ java -jar "arlcl-optimizer.jar" out_path="Export" db_path="Examples/BLE-RSS_Evaluation-Samples_Lecture-Room (Examples)/DB" batch_path="Examples/BLE-RSS_Evaluation-Samples_Lecture-Room (Examples)/Batch.txt" scenario_id=0 model=ble contours=30 min_m=95 kn=6 pos_extent=10 seed=0 end_iter=100 threads=5 opt_iter=1000 max_t=1000000 f_tol=1e-2 step=100 cycles=50`
 
@@ -162,6 +162,7 @@ The user needs to configure and call sequentially the provided batch-run.bat, or
 The cooperative localization engine based on **Mass Spring** which was used as a baseline.
 
 The python script supports only headless mode (for batch execution) and requires batch results being available from ARLCL-Optimizer.
+The user needs to configure and call sequentially the provided *ms-localizer_batch-run.bat*, or use directly the CLI according to the following example:
 
 ----
 
@@ -169,6 +170,7 @@ The python script supports only headless mode (for batch execution) and requires
 The cooperative localization engine based on **Maximum Likelihood - Particle Swarm Optimization** which was used as a baseline.
 
 The python script supports only headless mode (for batch execution) and requires batch results being available from ARLCL-Optimizer.
+The user needs to configure and call sequentially the provided *ml-pso-localizer_batch-run.bat*, or use directly the CLI according to the following example:
 
 ----
 
