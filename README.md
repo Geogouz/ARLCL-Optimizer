@@ -4,7 +4,7 @@ Dimitris Xenakis, Antonio Di Maio, Torsten Braun
 
 [![ARLCL-Optimizer](https://indoorpaths.com/3rd_sources/ARLCL/Cycles_in_ARLCL.jpg "ARLCL-Optimizer")](https://indoorpaths.com/3rd_sources/ARLCL/Cycles_in_ARLCL.jpg "ARLCL-Optimizer")
 
-ARLCL-Optimizer is an application implementing the cooperative localization method ARLCL: Anchor-free Ranging-Likelihood-based Cooperative Localization. This method has been developed by the Communication and Distributed Systems research group at the University of Bern.
+ARLCL-Optimizer is an application implementing the cooperative localization method **ARLCL: Anchor-free Ranging-Likelihood-based Cooperative Localization**. This method has been developed by the Communication and Distributed Systems research group at the University of Bern.
 
 The application supports both Graphical (for single scenario executions) and Headless (useful for batch executions) modes.
 
@@ -13,7 +13,7 @@ The application supports both Graphical (for single scenario executions) and Hea
 - RSS-based ranging using Bluetooth Low Energy signals [BLE] (model's units are in meters)
 - Time-based ranging using Ultra-Wideband signals [UWB] (model's units are in centimeters)
 
-We provide also two localization implementations based on Mass Springs (*MS_Localization.py*) and Maximum Likelihood - Particle Swarm Optimization (*ML-PSO_Localization.py*) that were used as baselines with ARLCL. Their dependencies are mentioned in *requirements.txt*.
+We provide also two localization implementations based on **Mass Springs** (*MS_Localization.py*) and **Maximum Likelihood - Particle Swarm Optimization** (*ML-PSO_Localization.py*) that were used as baselines with ARLCL. Their dependencies are mentioned in *requirements.txt*.
 
 ## Ranging Database
 
