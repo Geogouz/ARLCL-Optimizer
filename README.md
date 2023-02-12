@@ -13,7 +13,7 @@ The application supports both Graphical (for single scenario executions) and Hea
 - RSS-based ranging using Bluetooth Low Energy signals [BLE] (model's units are in meters)
 - Time-based ranging using Ultra-Wideband signals [UWB] (model's units are in centimeters)
 
-We provide also two localization implementations based on Mass Springs (*MS_Localization.py*) and Maximum Likelihood - Particle Swarm Optimization (*ML-PSO_Localization.py*) that were used as baselines with ARLCL. The dependencies are mentioned in *requirements.txt*.
+We provide also two localization implementations based on Mass Springs (*MS_Localization.py*) and Maximum Likelihood - Particle Swarm Optimization (*ML-PSO_Localization.py*) that were used as baselines with ARLCL. Their dependencies are mentioned in *requirements.txt*.
 
 ## Ranging Database
 
