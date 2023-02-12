@@ -13,6 +13,8 @@ The application supports both Graphical (for single scenario executions) and Hea
 - RSS-based ranging using Bluetooth Low Energy signals [BLE] (model's units are in meters)
 - Time-based ranging using Ultra-Wideband signals [UWB] (model's units are in centimeters)
 
+We provide also two localization implementations based on Mass Springs (*MS_Localization.py*) and Maximum Likelihood - Particle Swarm Optimization (*ML-PSO_Localization.py*) that were used as baselines with ARLCL. The dependencies are mentioned in *requirements.txt*.
+
 ## Ranging Database
 
 Depending on the execution mode, two different types of files can be used. GUI mode makes use of single database files (.rss or .smpl) containing the ranging measurements for a specific scenario. Headless mode makes use of an additional index file containing the scenario names of multiple database files.
@@ -158,7 +160,7 @@ The user needs to configure and call sequentially the provided *arlcl-optimizer_
 
 ----
 
-# CL based on Mass Spring
+# CL based on Mass Springs
 The cooperative localization engine based on **Mass Spring** which was used as a baseline.
 
 The python script supports only headless mode (for batch execution) and requires batch results being available from ARLCL-Optimizer.
