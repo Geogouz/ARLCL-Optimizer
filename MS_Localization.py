@@ -1,9 +1,8 @@
 # --------------------------------------------------------------
 # This module is used to generate the positioning estimations
 # using the Mass-Spring Localization method.
-# The results are stored into the MassSpring_Estimations folder.
-# Current DB loading, loads also the initialed positions from ARLCL results in case needed.
-# But one can disable this
+# The DB loading, loads the initial positions from ARLCL results,
+# to have a common initialization (could be disabled).
 # --------------------------------------------------------------
 import os
 import shutil

@@ -1,9 +1,8 @@
 # --------------------------------------------------------------
 # This module is used to generate the positioning estimations
-# using the ML_PSO Cooperative Localization method.
-# The results are stored into the ML_PSO_Estimations folder.
-# Current DB loading, loads also the initialed positions from ARLCL results in case needed.
-# But one can disable this
+# using the Maximum Likelihood - Particle Swarm Optimization Cooperative Localization method (PySwarms integration).
+# The DB loading, loads the initial positions from ARLCL results,
+# to have a common initialization (could be disabled).
 # --------------------------------------------------------------
 import math
 import abc
@@ -28,44 +27,6 @@ from functools import partial
 # TODO: Allow user to set custom model parameters
 # CLI call structure (zarp: zipped_arlcl_results_path):
 # $path-to-python.exe ML-PSO_Localization.py log_path="$path/to/log-file" zarp="$path/to/directory-with-exported-zip-results-from-arlcl" db_path="$path/to/node-samples-directory" scenarios_path="$path/to/scenarios-file" model="$BLE/$UWB" scenario_idx=0 end_eval=100 c1=0.7 c2=0.3 w=0.9 opts=1000 particles=700
-#
-# CLI call Example for UWB measurements:
-##########################
-""""
-C:/Users/gouzo/AppData/Local/Programs/Python/Python310/python.exe ML_PSO_Localization.py
-log_path="D:/OneDrive - Universitaet Bern/Workspace/Swarm Positioning/UWB/Export/UWB-log.txt"
-zarp="D:/OneDrive - Universitaet Bern/Workspace/Swarm Positioning/UWB/Export/ARLCL_UWB_Estimations"
-db_path="D:/OneDrive - Universitaet Bern/Workspace/Swarm Positioning/UWB/UWB-Time_Evaluation-Samples_Engehalde-Floor1 (Examples)/Scenarios"
-scenarios_path="D:/OneDrive - Universitaet Bern/Workspace/Swarm Positioning/UWB/UWB-Time_Evaluation-Samples_Engehalde-Floor1 (Examples)/Listed Scenarios.txt"
-model="UWB"
-scenario_idx=0
-end_eval=100
-c1=0.7
-c2=0.3
-w=0.9
-opts=1000
-particles=700
-"""
-##########################
-#
-# CLI call Example for BLE measurements:
-##########################
-"""
-C:/Users/gouzo/AppData/Local/Programs/Python/Python310/python.exe ML_PSO_Localization.py
-log_path="D:/OneDrive - Universitaet Bern/Workspace/Swarm Positioning/BLE/Export/BLE-log.txt"
-zarp="D:/OneDrive - Universitaet Bern/Workspace/Swarm Positioning/BLE/Export/ARLCL_BLE_Estimations"
-db_path="D:/OneDrive - Universitaet Bern/Workspace/Swarm Positioning/BLE/BLE-RSS_Evaluation-Samples_Lecture-Room (Examples)/Scenarios"
-scenarios_path="D:/OneDrive - Universitaet Bern/Workspace/Swarm Positioning/BLE/BLE-RSS_Evaluation-Samples_Lecture-Room (Examples)/Listed Scenarios.txt"
-model="BLE"
-scenario_idx=0
-end_eval=1
-c1=0.7
-c2=0.3
-w=0.9
-opts=500
-particles=500
-"""
-##########################
 
 verbose_logging = True
 
