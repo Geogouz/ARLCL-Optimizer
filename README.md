@@ -134,7 +134,7 @@ www.youtube.com/watch?v=2DhkNLAwHkw
 For batch execution (with results per cycle), the application may be launched in a scripted manner by executing the jar in headless mode and passing the selected parameters.
 The user needs to configure and call sequentially the provided *arlcl-optimizer_batch-run.bat*, or use directly the CLI according to the following example:
 
-`$ java -jar "arlcl-optimizer.jar" out_path="Export" db_path="Examples/BLE-RSS_Evaluation-Samples_Lecture-Room (Examples)/DB" batch_path="Examples/BLE-RSS_Evaluation-Samples_Lecture-Room (Examples)/Batch.txt" scenario_id=0 model=ble contours=30 min_m=95 kn=6 pos_extent=10 seed=0 end_iter=100 threads=5 opt_iter=1000 max_t=1000000 f_tol=1e-2 step=100 cycles=50`
+`$ java -jar "arlcl-optimizer.jar" out_path="Export" db_path="Examples/BLE-RSS_Evaluation-Samples_Lecture-Room (Examples)/DB" batch_path="Examples/BLE-RSS_Evaluation-Samples_Lecture-Room (Examples)/Batch.txt" scenario_id=0 model=ble contours=30 min_m=95 kn=6 pos_extent=10 seed=0 end_iter=100 threads=5 opts=1000 max_t=1000000 f_tol=1e-2 step=100 cycles=50`
 
 ### Parameters
 
@@ -152,7 +152,7 @@ The user needs to configure and call sequentially the provided *arlcl-optimizer_
 | *seed*        | Seed for any random values generated during the optimization.                                                                                                                                                                                             |
 | *end_iter*    | The ID of the last evaluated iteration in a DB file. Each DB file can contain multiple evaluation iterations (e.g. 100 for the case of #RSS_100#).                                                                                                        |
 | *threads*     | Number of optimization thread workers to be used. For identical reproducibility this should be set to 1.                                                                                                                                                  |
-| *opt_iter*    | How deep each optimization worker will be searching for the optimal solution at each step.                                                                                                                                                                |
+| *opts*        | How deep each optimization worker will be searching for the optimal solution at each step.                                                                                                                                                                |
 | *max_t*       | A time threshold to be used per step optimization. Has a higher priority compared to the “Optimization Iterations per Thread”.                                                                                                                            |
 | *f_tol*       | Tolerance for the optimization based on the Nelder–Mead method.                                                                                                                                                                                           |
 | *step*        | The step size considered by the Nelder–Mead method.                                                                                                                                                                                                       |

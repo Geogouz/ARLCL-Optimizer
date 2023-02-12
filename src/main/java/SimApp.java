@@ -149,7 +149,7 @@ public class SimApp extends Frame {
                 SimApp.initial_Map_Extend = Integer.parseInt(str_arguments.get("pos_extent"));
                 SimApp.ending_eval_iteration = Integer.parseInt(str_arguments.get("end_iter"));
                 SimApp.threads = Integer.parseInt(str_arguments.get("threads"));
-                SimApp.optimization_iterations_per_thread = Integer.parseInt(str_arguments.get("opt_iter"));
+                SimApp.optimization_iterations_per_thread = Integer.parseInt(str_arguments.get("opts"));
                 SimApp.max_optimization_time_per_thread = Integer.parseInt(str_arguments.get("max_t"));
                 SimApp.f_tol = Double.parseDouble(str_arguments.get("f_tol"));
                 SimApp.step_size = Double.parseDouble(str_arguments.get("step"));
