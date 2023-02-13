@@ -1,4 +1,4 @@
-@echo off
+rem @echo off
 
 set local_path=%cd%
 set venv_path=%local_path%\venv\Scripts\python.exe
@@ -22,7 +22,8 @@ c1=0.7 ^
 c2=0.3 ^
 w=0.9
 
-exit
+pause
+rem exit
 
 rem          or.....
 rem ####################################################################################################################

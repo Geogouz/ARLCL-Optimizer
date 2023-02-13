@@ -1,4 +1,4 @@
-@echo off
+rem @echo off
 
 set local_path=%cd%
 set venv_path=%local_path%\venv\Scripts\python.exe
@@ -19,7 +19,8 @@ end_iter=100 ^
 opts=50000 ^
 learn_rate=1e-2
 
-exit
+pause
+rem exit
 
 rem          or.....
 rem ####################################################################################################################

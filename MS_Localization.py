@@ -12,10 +12,12 @@ import zipfile
 import torch
 import torch.nn as nn
 
+print("Starting MS Localization")
+
 # TODO: Allow user to set custom model parameters
 
-measurement = {"BLE": {"unit": "RSS", "db_ext": ".rss"},
-               "UWB": {"unit": "TIME", "db_ext": ".smpl"}}
+measurement = {"ble": {"unit": "RSS", "db_ext": ".rss"},
+               "uwb": {"unit": "TIME", "db_ext": ".smpl"}}
 
 args = sys.argv
 str_params = {}
@@ -26,17 +28,19 @@ for parameter in sys.argv[1:]:
     key_value_pair = parameter.split("=")
     str_params[key_value_pair[0]] = key_value_pair[1]
 
-zipped_arlcl_results_path = str_params["zarp"]
-DB_path = str_params["db_path"]
-scenarios_path = str_params["scenarios_path"]
-input_log_path = str_params["log_path"]
+MS_export_path = str_params["out"]
+zipped_arlcl_results_path = str_params["arlcl_out"]
+DB_path = str_params["db"]
+scenarios_path = str_params["batch"]
+input_log_path = str_params["log"]
 model = str_params["model"]
-scenario_idx = int(str_params["scenario_idx"])
-last_evaluation_id = int(str_params["end_eval"])
+scenario_idx = int(str_params["scenario_id"])
+input_seed = int(str_params["seed"])
+last_evaluation_id = int(str_params["end_iter"])
 optimization_iterations = int(str_params["opts"])
 learn_rate = float(str_params["learn_rate"])
 
-np.random.seed(scenario_idx)
+np.random.seed(input_seed)
 
 print("Starting")
 print("\nInput params: ")
@@ -354,12 +358,11 @@ scenario = get_cur_scenario(scenarios_path, scenario_idx)
 def set_paths():
     global DB_path, scenario, scenario_DB_path, MS_export_scenario_path, MS_zip_scenario_path, \
         ARLCL_zipped_scenario_path, ARLCL_temp_export_path, ARLCL_temp_export_scenario_path, measurement, model, \
-        zipped_arlcl_results_path
+        zipped_arlcl_results_path, MS_export_path
 
     parent_arlcl_results_dir = os.path.dirname(zipped_arlcl_results_path)
 
     scenario_DB_path = os.path.join(DB_path, scenario + measurement[model]["db_ext"])
-    MS_export_path = os.path.join(parent_arlcl_results_dir, "MS_" + model + "_Estimations")
 
     if not os.path.exists(MS_export_path):
         os.makedirs(MS_export_path)
@@ -368,7 +371,7 @@ def set_paths():
     MS_export_scenario_path = os.path.join(MS_export_path, scenario)
     MS_zip_scenario_path = MS_export_scenario_path + ".zip"
     ARLCL_zipped_scenario_path = os.path.join(zipped_arlcl_results_path, scenario + ".zip")
-    ARLCL_temp_export_path = os.path.join(parent_arlcl_results_dir, "ARLCL_" + model + "_Estimations_temp_unzipped")
+    ARLCL_temp_export_path = os.path.join(parent_arlcl_results_dir, model.upper() + "_Estimations_temp_unzipped")
 
     if not os.path.exists(ARLCL_temp_export_path):
         os.makedirs(ARLCL_temp_export_path)
