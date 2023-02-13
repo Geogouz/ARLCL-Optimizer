@@ -13,8 +13,6 @@ import torch
 import torch.nn as nn
 
 # TODO: Allow user to set custom model parameters
-# CLI call structure:
-# $path-to-python.exe MS_Localization.py log_path="$path/to/log-file" zarp="$path/to/directory-with-exported-zip-results-from-arlcl" db_path="$path/to/node-samples-directory" scenarios_path="$path/to/scenarios-file" model="$BLE/$UWB" scenario_idx=0 end_eval=100 opts=50000 learn_rate=0.01
 
 measurement = {"BLE": {"unit": "RSS", "db_ext": ".rss"},
                "UWB": {"unit": "TIME", "db_ext": ".smpl"}}

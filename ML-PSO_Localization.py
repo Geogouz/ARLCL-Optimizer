@@ -25,8 +25,6 @@ from attr.validators import instance_of
 from functools import partial
 
 # TODO: Allow user to set custom model parameters
-# CLI call structure:
-# $path-to-python.exe ML-PSO_Localization.py log_path="$path/to/log-file" zarp="$path/to/directory-with-exported-zip-results-from-arlcl" db_path="$path/to/node-samples-directory" scenarios_path="$path/to/scenarios-file" model="$BLE/$UWB" scenario_idx=0 end_eval=100 c1=0.7 c2=0.3 w=0.9 opts=1000 particles=700
 
 verbose_logging = True
 

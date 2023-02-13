@@ -142,7 +142,7 @@ public class SimApp extends Frame {
                     str_arguments.put(key_value_pair[0], key_value_pair[1]);
                 }
 
-                SimApp.outpath_results_folder_path = str_arguments.get("out_path");
+                SimApp.outpath_results_folder_path = str_arguments.get("out");
                 SimApp.plotContours = Integer.parseInt(str_arguments.get("contours"));
                 SimApp.min_effective_measurement = Integer.parseInt(str_arguments.get("min_m"));
                 SimApp.kNearestNeighbours_for_BeliefsStrength = Integer.parseInt(str_arguments.get("kn"));
@@ -179,8 +179,8 @@ public class SimApp extends Frame {
                 SimApp.seed = Long.parseLong(str_arguments.get("seed"));
                 SimApp.random.setSeed(SimApp.seed);
 
-                input_db_folder_path = str_arguments.get("db_path");
-                String eval_batch_path = str_arguments.get("batch_path");
+                input_db_folder_path = str_arguments.get("db");
+                String eval_batch_path = str_arguments.get("batch");
                 int scenario_id_in_batch = Integer.parseInt(str_arguments.get("scenario_id"));
                 // Parse the evaluation scenarios from the combos file
                 SimApp.eval_scenario = parseEvalScenario(scenario_id_in_batch, eval_batch_path);
