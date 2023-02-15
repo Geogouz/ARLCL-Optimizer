@@ -4,6 +4,7 @@
 # The DB loading, loads the initial positions from ARLCL results,
 # to have a common initialization (could be disabled).
 # --------------------------------------------------------------
+# TODO: Allow user to set custom model parameters
 import os
 import shutil
 import sys
@@ -12,9 +13,8 @@ import zipfile
 import torch
 import torch.nn as nn
 
-print("Starting MS Localization")
 
-# TODO: Allow user to set custom model parameters
+logged_lines = []
 
 measurement = {"ble": {"unit": "RSS", "db_ext": ".rss"},
                "uwb": {"unit": "TIME", "db_ext": ".smpl"}}
@@ -42,9 +42,29 @@ learn_rate = float(str_params["learn_rate"])
 
 np.random.seed(input_seed)
 
-print("Starting")
-print("\nInput params: ")
-print(str_params)
+
+def get_cur_scenario(eval_scenarios, eval_scenario_id):
+    with open(eval_scenarios) as fp:
+        for i, line in enumerate(fp):
+            if i == eval_scenario_id:
+                split_line = line.replace("\n", "").split(" ")
+                filename = split_line[0] + "_" + split_line[1].replace("(", "").replace(")", "") + "_" + split_line[2]
+                break
+    return filename
+
+
+# Use the provided ID to identify the scenario
+# TODO: One can implement his own way of loading the scenario. Current approach is used for the needs of SLURM cluster
+scenario = get_cur_scenario(scenarios_path, scenario_idx)
+# ONE CAN EVEN UNCOMMENT THIS TO SET MANUALLY A SCENARIO
+# scenario = "A_1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40_5"
+
+
+def log_progress(entry):
+    global logged_lines
+    # print(entry, flush=True)
+    logged_lines.append(str(entry)+"\n")
+
 
 
 class MassSprings(nn.Module):
@@ -61,7 +81,7 @@ class MassSprings(nn.Module):
         l = (q + 1e-6).sqrt()
         dl = l - self.l0
         e = 0.5 * (self.k * dl.pow(2)).sum()
-        # print(e)
+        # print(e, flush=True)
         return e
 
 
@@ -113,7 +133,7 @@ def find_nth(given_string, part, n):
 def unzip_arlcl_results():
     # Check if we have already extracted the ARLCL results
     if not file_exists(ARLCL_temp_export_scenario_path):
-        print("Extracting the ARLCL data at " + ARLCL_temp_export_scenario_path)
+        log_progress("Extracting the ARLCL data at " + ARLCL_temp_export_scenario_path)
         with zipfile.ZipFile(ARLCL_zipped_scenario_path, 'r') as zipObj:
             for sub_file in zipObj.namelist():
                 if sub_file.endswith(".log"):
@@ -124,25 +144,25 @@ def get_initial_positions(eval_iter):
 
     temp_initial_vertex_positions = []
     arlcl_exported_eval_scenario_results_path = ARLCL_temp_export_scenario_path + "/" + str(eval_iter) + "/results.log"
-    print("Opening " + arlcl_exported_eval_scenario_results_path)
-    with open(arlcl_exported_eval_scenario_results_path, 'r') as input_rss_file:
-        for line in input_rss_file:
+    log_progress("Opening " + arlcl_exported_eval_scenario_results_path)
+    with open(arlcl_exported_eval_scenario_results_path, 'r') as input_DB_file:
+        for line in input_DB_file:
 
-            print(line)
+            # print(line, flush=True)
 
             if line[0:4] == "Node":
 
-                # print(line)
+                # print(line, flush=True)
 
                 # Get the reference Node ID
                 node_id = get_reference_node_id_from_log_entry(line)
 
                 # Get the initial random Node pos
                 temp_initial_vertex_positions.append(get_initial_random_node_pos_from_log_entry(line))
-                # print("Node: " + str(node_id) + ", Pos: " + str(node_pos))
+                # print("Node: " + str(node_id) + ", Pos: " + str(node_pos), flush=True)
 
     torch.tensor(temp_initial_vertex_positions, dtype=torch.float32)
-    print(temp_initial_vertex_positions)
+    # print(temp_initial_vertex_positions, flush=True)
     return torch.tensor(temp_initial_vertex_positions, dtype=torch.float32)
 
 
@@ -157,16 +177,17 @@ def get_spring_connections(eval_iter):
 
     with open(scenario_DB_path, 'r') as input_data:
 
-        rss_section = False
+        new_section_for_averaged_resampling = False
 
         for line in input_data:
 
             line = line.replace("\n", "")
-            if line == "#RSS_" + str(eval_iter) + "#":
-                rss_section = True
+            if line == "#" + measurement[model]["unit"] + "_" + str(eval_iter) + "#":
+                new_section_for_averaged_resampling = True
                 continue
-            if rss_section:
-                # Identify the end of the iter section
+            if new_section_for_averaged_resampling:
+                # Identify the end of current iter section to exit
+                # (to avoid parsing sampled measurements corresponding to other evaluation repetitions)
                 if line == "":
                     return temp_indices, torch.tensor(temp_weights,
                                                       dtype=torch.float32), temp_custom_index_to_original_index_mapping
@@ -203,12 +224,13 @@ def get_spring_connections(eval_iter):
 
 
 def store_positioning_results(exported_results_filename, vertex_positions, index_mapping):
-    # print(vertex_positions)
-    # print(index_mapping)
+    # print(vertex_positions, flush=True)
+    # print(index_mapping, flush=True)
 
     with open(exported_results_filename, "w") as out_data:
         for nodeID in range(len(index_mapping)):
             line_to_write = "Node:" + str(index_mapping[nodeID]) + ";" + str(round(vertex_positions[nodeID][0].item(), 3)) + ":" + str(round(vertex_positions[nodeID][1].item(), 3)) + "\n"
+            # print(line_to_write, flush=True)
             # line_to_write = str(round(vertex_positions[nodeID][0].item(), 3)) + ";" + str(round(vertex_positions[nodeID][1].item(), 3)) + "\n"  # TODO Debugging line
             out_data.write(line_to_write)
 
@@ -218,14 +240,14 @@ def calculate_swarm_positions(eval_iter, total_opts, scenario_eval_results_path)
     # vertex positions
     vertex_positions = get_initial_positions(eval_iter)
     vertex_positions.requires_grad_()
-    # print(vertex_positions)
+    # print(vertex_positions, flush=True)
 
     # springs, specified as vertex indices and rest_lengths as weights
     indices, rest_lengths, custom_index_to_original_index_mapping = get_spring_connections(eval_iter)
 
-    # print(indices)
-    # print(rest_lengths)
-    # print(custom_index_to_original_index_mapping)
+    # print(indices, flush=True)
+    # print(rest_lengths, flush=True)
+    # print(custom_index_to_original_index_mapping, flush=True)
 
     num_vertices, d = vertex_positions.shape
     num_springs = len(indices)
@@ -241,21 +263,11 @@ def calculate_swarm_positions(eval_iter, total_opts, scenario_eval_results_path)
         optimizer.zero_grad()
         loss = springs.energy(vertex_positions)
         # Check the loss
-        # print(loss)
+        # print(loss, flush=True)
         loss.backward()
         optimizer.step()
 
     store_positioning_results(scenario_eval_results_path, vertex_positions, custom_index_to_original_index_mapping)
-
-
-def get_cur_scenario(eval_scenarios, eval_scenario_id):
-    with open(eval_scenarios) as fp:
-        for i, line in enumerate(fp):
-            if i == eval_scenario_id:
-                split_line = line.replace("\n", "").split(" ")
-                filename = split_line[0] + "_" + split_line[1].replace("(", "").replace(")", "") + "_" + split_line[2]
-                break
-    return filename
 
 
 def file_exists(filepath):
@@ -267,33 +279,33 @@ def file_exists(filepath):
 def eval_id_already_available(export, eval_scenario, eval_id):
     filepath = export + eval_scenario
     if os.path.isfile(filepath):
-        print("Folder exists")
+        log_progress("Folder exists")
         return True
     return False
 
 
 def delete_folder(path):
-    print("Deleting possible leftovers at " + path)
+    log_progress("Deleting possible leftovers at " + path)
     try:
         shutil.rmtree(path)
     except OSError as e:
-        print("Notice: %s - %s." % (e.filename, e.strerror))
+        log_progress("Notice: %s - %s." % (e.filename, e.strerror))
 
 
 def run():
-    print("\nCheck whether the final Mass-Spring results for current scenario (" + scenario + ") already exist.")
+    log_progress("\nCheck whether the final Mass-Spring results for current scenario (" + scenario + ") already exist.")
     # Check first whether the final Mass-Spring results for this scenario (a zip file) already exist
     if file_exists(MS_zip_scenario_path):
-        print("Current scenario (" + scenario + ") has already been processed successfully.")
+        log_progress("Current scenario (" + scenario + ") has already been processed successfully.")
 
         # Clean any probable old temporal ARLCL or Mass-Spring data, related to current scenario
         delete_folder(ARLCL_temp_export_scenario_path)
         delete_folder(MS_export_scenario_path)
 
         # Since the file already exists, we can terminate the script here
-        exit()
+        raise Exception
     else:
-        print("The final Mass-Spring results for current scenario (" + scenario + ") do not exist.")
+        log_progress("The final Mass-Spring results for current scenario (" + scenario + ") do not exist.")
         # Clean any probable old temporal ARLCL data, related to current scenario
         delete_folder(ARLCL_temp_export_scenario_path)
 
@@ -305,38 +317,38 @@ def run():
     # Also, although we did not find the final Mass-Spring results for this scenario,
     # check whether there are any older preprocessed data
     if not file_exists(MS_export_scenario_path):
-        print("Scenario " + scenario + " has not been initiated before. Creating folder.")
+        log_progress("Scenario " + scenario + " has not been initiated before. Creating folder.")
         # if not, then we can create the folder and continue
         os.mkdir(MS_export_scenario_path)
     else:
-        print("Scenario " + scenario + " has been initiated before but is not complete. Continuing the evaluations.")
+        log_progress("Scenario " + scenario + " has been initiated before but is not complete. Continuing the evaluations.")
 
     # Remember that eval=0 is perfect
     for eval_iter in range(last_evaluation_id + 1):
-        print("\nStart optimizing evaluation scenario of ID: " + str(eval_iter))
+        log_progress("\nStart optimizing evaluation scenario of ID: " + str(eval_iter))
 
         ms_exported_eval_scenario_path = os.path.join(MS_export_scenario_path, str(eval_iter))
         ms_exported_eval_scenario_results_path = os.path.join(ms_exported_eval_scenario_path, "results.log")
-        print("Searching for previous optimization results at: " + ms_exported_eval_scenario_results_path)
+        log_progress("Searching for previous optimization results at: " + ms_exported_eval_scenario_results_path)
 
         # Check first whether current evaluation iteration has results ready
         if file_exists(ms_exported_eval_scenario_results_path):
-            print("Previous results for eval scenario " + scenario + " found")
-            print("Skipping current evaluation iteration")
+            log_progress("Previous results for eval scenario " + scenario + " found")
+            log_progress("Skipping current evaluation iteration")
             pass
         else:
-            print("No previous results found")
+            log_progress("No previous results found")
             # Clean and recreate the target Mass-Spring results folder, related to current scenario
             delete_folder(ms_exported_eval_scenario_path)
             os.mkdir(ms_exported_eval_scenario_path)
 
             calculate_swarm_positions(eval_iter, optimization_iterations, ms_exported_eval_scenario_results_path)
 
-        # exit()  # TODO used to constraint only to 1 iteration
+        # exit()  # Used to constraint only to 1 iteration
 
 
 def zip_ms_results():
-    print("Storing the Mass-Spring Results data at " + MS_zip_scenario_path)
+    log_progress("Storing the Mass-Spring Results data at " + MS_zip_scenario_path)
 
     zipf = zipfile.ZipFile(MS_zip_scenario_path, 'w', zipfile.ZIP_DEFLATED)
 
@@ -346,13 +358,6 @@ def zip_ms_results():
                        os.path.relpath(os.path.join(root, file),
                                        os.path.join(MS_export_scenario_path, '..')))
     zipf.close()
-
-
-# Use the provided ID to identify the scenario
-# TODO: One can implement his own way of loading the scenario. Current approach is used for the needs of SLURM cluster
-scenario = get_cur_scenario(scenarios_path, scenario_idx)
-# ONE CAN EVEN UNCOMMENT THIS TO SET MANUALLY A SCENARIO
-# scenario = "A_1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40_5"
 
 
 def set_paths():
@@ -379,23 +384,39 @@ def set_paths():
 
     ARLCL_temp_export_scenario_path = os.path.join(ARLCL_temp_export_path, scenario)
 
-    print("\nSetting other paths: ")
-    print("scenario db path: " + scenario_DB_path)
-    print("MS export path: " + MS_export_path)
-    print("MS export scenario path: " + MS_export_scenario_path)
-    print("MS zip scenario path: " + MS_zip_scenario_path)
-    print("ARLCL zipped scenario path: " + ARLCL_zipped_scenario_path)
-    print("ARLCL export path: " + ARLCL_temp_export_path)
+    log_progress("\nSetting other paths: ")
+    log_progress("scenario db path: " + scenario_DB_path)
+    log_progress("MS export path: " + MS_export_path)
+    log_progress("MS export scenario path: " + MS_export_scenario_path)
+    log_progress("MS zip scenario path: " + MS_zip_scenario_path)
+    log_progress("ARLCL zipped scenario path: " + ARLCL_zipped_scenario_path)
+    log_progress("ARLCL export path: " + ARLCL_temp_export_path)
 
 
-# Set the required paths first
-set_paths()
+try:
+    log_progress("Starting")
+    log_progress("\nInput params: ")
+    log_progress(str_params)
 
-# Execute the optimization
-run()
+    # Set the required paths first
+    set_paths()
 
-# Store the results and clean the temp folder
-zip_ms_results()
-delete_folder(MS_export_scenario_path)
-# Clean any probable old temporal ARLCL data, related to current scenario
-delete_folder(ARLCL_temp_export_scenario_path)
+    # Execute the optimization
+    run()
+
+    # Store the results and clean the temp folder
+    zip_ms_results()
+
+    print(MS_export_scenario_path, flush=True)
+    print(ARLCL_temp_export_scenario_path, flush=True)
+
+    delete_folder(MS_export_scenario_path)
+    # Clean any probable old temporal ARLCL data, related to current scenario
+    delete_folder(ARLCL_temp_export_scenario_path)
+
+except Exception as e:
+    print("Termination %s" % e, flush=True)
+
+with open(os.path.join(input_log_path, scenario + ".log"), "w") as log_data:
+    for line in logged_lines:
+        log_data.write(line)

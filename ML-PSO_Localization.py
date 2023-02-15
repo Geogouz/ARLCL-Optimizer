@@ -4,6 +4,7 @@
 # The DB loading, loads the initial positions from ARLCL results,
 # to have a common initialization (could be disabled).
 # --------------------------------------------------------------
+# TODO: Allow user to set custom model parameters
 import math
 import abc
 import yaml
@@ -24,9 +25,6 @@ from attr import attrib, attrs
 from attr.validators import instance_of
 from functools import partial
 
-print("Starting ML-PSO Localization")
-
-# TODO: Allow user to set custom model parameters
 
 verbose_logging = True
 
@@ -60,11 +58,29 @@ w_arg = float(str_params["w"])
 np.random.seed(input_seed)
 
 
+# This definition is required before Reporter because the latter's dependency
+def get_cur_scenario(eval_scenarios, eval_scenario_id):
+    with open(eval_scenarios) as fp:
+        for i, line in enumerate(fp):
+            if i == eval_scenario_id:
+                split_line = line.replace("\n", "").split(" ")
+                filename = split_line[0] + "_" + split_line[1].replace("(", "").replace(")", "") + "_" + split_line[2]
+                break
+    return filename
+
+
+# Use the provided ID to identify the scenario
+# TODO: One can implement his own way of loading the scenario. Current approach is used for the needs of SLURM cluster
+scenario = get_cur_scenario(scenarios_path, scenario_idx)
+# ONE CAN EVEN UNCOMMENT THIS TO SET MANUALLY A SCENARIO
+# scenario = "A_1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40_5"
+
+
 class Reporter(object):
-    def __init__(self, log_path=input_log_path, config_path=None, logger=None, printer=None):
+    def __init__(self, logger=None):
         self.logger = logger or logging.getLogger(__name__)
-        self.printer = printer or pprint.PrettyPrinter()
-        self.log_path = log_path
+        self.printer = pprint.PrettyPrinter()
+        self.log_path = os.path.join(input_log_path, scenario + ".log")
         self._bar_fmt = "{l_bar}{bar}|{n_fmt}/{total_fmt}{postfix}"
         self._env_key = "LOG_CFG"
         self._default_config = {
@@ -99,7 +115,7 @@ class Reporter(object):
                 }
             },
         }
-        self._setup_logger(config_path)
+        self._load_defaults()
 
     def log(self, msg, lvl=logging.INFO, *args, **kwargs):
         self.logger.log(lvl, msg, *args, **kwargs)
@@ -109,15 +125,6 @@ class Reporter(object):
             self.printer.pprint(msg)
         else:
             pass
-
-    def _setup_logger(self, path=None):
-        value = path or os.getenv(self._env_key, None)
-        try:
-            with open(value, "rt") as f:
-                config = yaml.safe_load(f.read())
-            logging.config.dictConfig(config)
-        except (TypeError, FileNotFoundError):
-            self._load_defaults()
 
     def _load_defaults(self):
         """Load default logging configuration"""
@@ -130,14 +137,7 @@ class Reporter(object):
     def hook(self, *args, **kwargs):
         self.t.set_postfix(*args, **kwargs)
 
-
 rep = Reporter()
-rep.log("Starting")
-rep.log("\nInput params: ")
-rep.log(str_params)
-
-global_counter = 0
-
 
 class HandlerMixin(object):
     def _merge_dicts(self, *dict_args):
@@ -1311,16 +1311,6 @@ def calculate_swarm_positions(eval_iter, scenario_eval_results_path):
     store_positioning_results(scenario_eval_results_path, (x, y))
 
 
-def get_cur_scenario(eval_scenarios, eval_scenario_id):
-    with open(eval_scenarios) as fp:
-        for i, line in enumerate(fp):
-            if i == eval_scenario_id:
-                split_line = line.replace("\n", "").split(" ")
-                filename = split_line[0] + "_" + split_line[1].replace("(", "").replace(")", "") + "_" + split_line[2]
-                break
-    return filename
-
-
 def file_exists(filepath):
     if os.path.exists(filepath):
         return True
@@ -1403,8 +1393,7 @@ def run():
 
             calculate_swarm_positions(eval_iter, ML_PSO_exported_eval_scenario_results_path)
 
-        # Use that to only execute the first optimization
-        # break
+        # exit()  # Used to constraint only to 1 iteration
 
 
 def zip_ML_PSO_results():
@@ -1420,32 +1409,6 @@ def zip_ML_PSO_results():
                        os.path.relpath(os.path.join(root, file),
                                        os.path.join(ML_PSO_export_scenario_path, '..')))
     zipf.close()
-
-
-# Use the provided ID to identify the scenario
-# TODO: One can implement his own way of loading the scenario. Current approach is used for the needs of SLURM cluster
-scenario = get_cur_scenario(scenarios_path, scenario_idx)
-# ONE CAN EVEN UNCOMMENT THIS TO SET MANUALLY A SCENARIO
-# scenario = "A_1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40_5"
-
-node_ids = [int(parsed_id) for parsed_id in scenario.split("_")[1].split(",")]
-# rep.log("node_ids")
-# rep.log(node_ids)
-
-iter_counter = 0
-tensor_idx_from_node_id = {}
-
-# build the index mapping
-for true_nodeID in node_ids:
-    tensor_idx_from_node_id[true_nodeID] = iter_counter
-    iter_counter = iter_counter + 1
-
-# Set-up opt searching parameters
-options = {'c1': c1_arg, 'c2': c2_arg, 'w': w_arg}
-
-true_positions = None
-number_of_nodes = len(node_ids)
-pos_parameters = number_of_nodes * 2
 
 
 def set_paths():
@@ -1480,15 +1443,48 @@ def set_paths():
     rep.log("ARLCL zipped scenario path: " + ARLCL_zipped_scenario_path)
     rep.log("ARLCL export path: " + ARLCL_temp_export_path)
 
+try:
+    rep.log("Starting")
+    rep.log("\nInput params: ")
+    rep.log(str_params)
 
-# Set the required paths first
-set_paths()
+    global_counter = 0
 
-# Execute the optimization
-run()
+    node_ids = [int(parsed_id) for parsed_id in scenario.split("_")[1].split(",")]
+    # rep.log("node_ids")
+    # rep.log(node_ids)
 
-# Store the results and clean the temp folder
-zip_ML_PSO_results()
-delete_folder(ML_PSO_export_scenario_path)
-# Clean any probable old temporal ARLCL data, related to current scenario
-delete_folder(ARLCL_temp_export_scenario_path)
+    iter_counter = 0
+    tensor_idx_from_node_id = {}
+
+    # build the index mapping
+    for true_nodeID in node_ids:
+        tensor_idx_from_node_id[true_nodeID] = iter_counter
+        iter_counter = iter_counter + 1
+
+    # Set-up opt searching parameters
+    options = {'c1': c1_arg, 'c2': c2_arg, 'w': w_arg}
+
+    true_positions = None
+    number_of_nodes = len(node_ids)
+    pos_parameters = number_of_nodes * 2
+
+
+    # Set the required paths first
+    set_paths()
+
+    # Execute the optimization
+    run()
+
+    # Store the results and clean the temp folder
+    zip_ML_PSO_results()
+
+    print(ML_PSO_export_scenario_path, flush=True)
+    print(ARLCL_temp_export_scenario_path, flush=True)
+
+    delete_folder(ML_PSO_export_scenario_path)
+    # Clean any probable old temporal ARLCL data, related to current scenario
+    delete_folder(ARLCL_temp_export_scenario_path)
+
+except Exception as e:
+    print("Termination %s" % e)

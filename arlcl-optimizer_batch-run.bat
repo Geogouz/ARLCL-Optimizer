@@ -29,7 +29,7 @@ java -jar "arlcl-optimizer.jar" ^
 out="Export/ARLCL/UWB" ^
 db="Examples/UWB-Time_Evaluation-Samples_Engehalde-Floor1 (Examples)/DB" ^
 batch="Examples/UWB-Time_Evaluation-Samples_Engehalde-Floor1 (Examples)/Batch.txt" ^
-scenario_id=0 ^
+scenario_id=3 ^
 model=uwb ^
 contours=0 ^
 min_m=60 ^
