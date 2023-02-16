@@ -143,10 +143,13 @@ def unzip_arlcl_results():
 def get_initial_positions(eval_iter):
 
     temp_initial_vertex_positions = []
+
     arlcl_exported_eval_scenario_results_path = ARLCL_temp_export_scenario_path + "/" + str(eval_iter) + "/results.log"
+
     log_progress("Opening " + arlcl_exported_eval_scenario_results_path)
-    with open(arlcl_exported_eval_scenario_results_path, 'r') as input_DB_file:
-        for line in input_DB_file:
+
+    with open(arlcl_exported_eval_scenario_results_path, 'r') as arlcl_results_file:
+        for line in arlcl_results_file:
 
             # print(line, flush=True)
 
@@ -216,8 +219,11 @@ def get_spring_connections(eval_iter):
                 node_id_pairs = [custom_nodeA_id, custom_nodeB_id]
                 temp_indices.append(node_id_pairs)
 
-                weight_parts = line_parts[1].split("&")
-                temp_weights.append(float(weight_parts[1].replace(",", ".")))
+                current_distance = float(line_parts[1].split("&")[1].replace(",", "."))
+
+                # print(current_distance, flush=True)
+
+                temp_weights.append(current_distance)
 
         # Being here means that we have finished iterating the file
         return temp_indices, torch.tensor(temp_weights, dtype=torch.float32), temp_custom_index_to_original_index_mapping

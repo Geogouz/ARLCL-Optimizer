@@ -7,7 +7,6 @@
 # TODO: Allow user to set custom model parameters
 import math
 import abc
-import yaml
 import os
 import pprint
 import shutil
@@ -16,6 +15,8 @@ import zipfile
 import logging
 import logging.config
 import inspect
+from datetime import datetime
+
 import numpy as np
 import multiprocessing as mp
 from tqdm import trange
@@ -24,7 +25,6 @@ from collections import deque, namedtuple
 from attr import attrib, attrs
 from attr.validators import instance_of
 from functools import partial
-
 
 verbose_logging = True
 
@@ -72,6 +72,8 @@ def get_cur_scenario(eval_scenarios, eval_scenario_id):
 # Use the provided ID to identify the scenario
 # TODO: One can implement his own way of loading the scenario. Current approach is used for the needs of SLURM cluster
 scenario = get_cur_scenario(scenarios_path, scenario_idx)
+
+
 # ONE CAN EVEN UNCOMMENT THIS TO SET MANUALLY A SCENARIO
 # scenario = "A_1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40_5"
 
@@ -80,6 +82,12 @@ class Reporter(object):
     def __init__(self, logger=None):
         self.logger = logger or logging.getLogger(__name__)
         self.printer = pprint.PrettyPrinter()
+
+        # Can be used to separate logs at iteration granularity
+        # current_time = datetime.now()
+        # filename_timestamp = current_time.strftime("%Y-%m-%d_%H-%M-%S")
+        # self.log_path = os.path.join(input_log_path, scenario + "_" + filename_timestamp + ".log")
+
         self.log_path = os.path.join(input_log_path, scenario + ".log")
         self._bar_fmt = "{l_bar}{bar}|{n_fmt}/{total_fmt}{postfix}"
         self._env_key = "LOG_CFG"
@@ -137,7 +145,9 @@ class Reporter(object):
     def hook(self, *args, **kwargs):
         self.t.set_postfix(*args, **kwargs)
 
+
 rep = Reporter()
+
 
 class HandlerMixin(object):
     def _merge_dicts(self, *dict_args):
@@ -616,7 +626,7 @@ class PSO(SwarmOptimizer):
         self.oh = OptionsHandler(strategy=oh_strategy)
         self.name = __name__
 
-    def optimize(self, objective_func, iters, n_processes=None, verbose=True, **kwargs):
+    def optimize(self, objective_func, iters, verbose=True, **kwargs):
         # Apply verbosity
         if verbose:
             log_level = logging.INFO
@@ -627,22 +637,19 @@ class PSO(SwarmOptimizer):
         self.bh.memory = self.swarm.position
         self.vh.memory = self.swarm.position
 
-        # Setup Pool of processes for parallel evaluation
-        pool = None if n_processes is None else mp.Pool(n_processes)
-
         self.swarm.pbest_cost = np.full(self.swarm_size[0], np.inf)
         ftol_history = deque(maxlen=self.ftol_iter)
         for i in self.rep.pbar(iters, self.name) if verbose else range(iters):
             # Compute cost for current position and personal best
-            # fmt: off
-            self.swarm.current_cost = compute_objective_function(self.swarm, objective_func, pool=pool, **kwargs)
+            self.swarm.current_cost = compute_objective_function(self.swarm, objective_func, **kwargs)
             self.swarm.pbest_pos, self.swarm.pbest_cost = compute_pbest(self.swarm)
             # Set best_cost_yet_found for ftol
             best_cost_yet_found = self.swarm.best_cost
             self.swarm.best_pos, self.swarm.best_cost = self.top.compute_gbest(self.swarm)
-            # fmt: on
+
             if verbose:
                 self.rep.hook(best_cost=self.swarm.best_cost)
+
             # Save to history
             hist = self.ToHistory(
                 best_cost=self.swarm.best_cost,
@@ -651,7 +658,9 @@ class PSO(SwarmOptimizer):
                 position=self.swarm.position,
                 velocity=self.swarm.velocity,
             )
+
             self._populate_history(hist)
+
             # Verify stop criteria based on the relative acceptable cost ftol
             relative_measure = self.ftol * (1 + np.abs(best_cost_yet_found))
             delta = (
@@ -683,10 +692,8 @@ class PSO(SwarmOptimizer):
 
         # Write report in log and return final cost and position
         self.rep.log("Optimization finished with best cost: {}".format(final_best_cost), lvl=log_level, )
-        # Close Pool of Processes
-        if n_processes is not None:
-            pool.close()
-        return (final_best_cost, final_best_pos)
+
+        return final_best_cost, final_best_pos
 
 
 class OptionsHandler(HandlerMixin):
@@ -806,32 +813,6 @@ class OptionsHandler(HandlerMixin):
             return new_val
 
 
-def generate_discrete_swarm(n_particles, dimensions, binary=False, init_pos=None):
-    try:
-        if (init_pos is not None) and binary:
-            if not len(np.unique(init_pos)) <= 2:
-                raise ValueError("User-defined init_pos is not binary!")
-            # init_pos maybe ones
-            pos = init_pos
-        elif (init_pos is not None) and not binary:
-            pos = init_pos
-        elif (init_pos is None) and binary:
-            pos = np.random.randint(2, size=(n_particles, dimensions))
-        else:
-            pos = np.random.random_sample(
-                size=(n_particles, dimensions)
-            ).argsort(axis=1)
-    except ValueError:
-        rep.logger.exception("Please check the size and value of dimensions")
-        raise
-    except TypeError:
-        msg = "generate_discrete_swarm() takes an int for n_particles and dimensions"
-        rep.logger.exception(msg)
-        raise
-    else:
-        return pos
-
-
 def generate_velocity(n_particles, dimensions, clamp=None):
     try:
         min_velocity, max_velocity = (0, 1) if clamp is None else clamp
@@ -853,11 +834,10 @@ def generate_velocity(n_particles, dimensions, clamp=None):
 def generate_swarm(n_particles, dimensions, bounds=None, center=1.00, init_pos=None):
     try:
         if (init_pos is not None) and (bounds is None):
-            pos = init_pos
+            pos = np.tile(init_pos, (n_particles, 1))
+            # print(pos)
         elif (init_pos is not None) and (bounds is not None):
-            if not (
-                    np.all(bounds[0] <= init_pos) and np.all(init_pos <= bounds[1])
-            ):
+            if not (np.all(bounds[0] <= init_pos) and np.all(init_pos <= bounds[1])):
                 raise ValueError("User-defined init_pos is out of bounds.")
             pos = init_pos
         elif (init_pos is None) and (bounds is None):
@@ -887,20 +867,14 @@ def generate_swarm(n_particles, dimensions, bounds=None, center=1.00, init_pos=N
         return pos
 
 
-def create_swarm(n_particles, dimensions, discrete=False, binary=False, options={}, bounds=None, center=1.0,
-                 init_pos=None, clamp=None, ):
-    if discrete:
-        position = generate_discrete_swarm(
-            n_particles, dimensions, binary=binary, init_pos=init_pos
-        )
-    else:
-        position = generate_swarm(
-            n_particles,
-            dimensions,
-            bounds=bounds,
-            center=center,
-            init_pos=init_pos,
-        )
+def create_swarm(n_particles, dimensions, options={}, bounds=None, center=1.0, init_pos=None, clamp=None, ):
+    position = generate_swarm(
+        n_particles,
+        dimensions,
+        bounds=bounds,
+        center=center,
+        init_pos=init_pos,
+    )
 
     velocity = generate_velocity(n_particles, dimensions, clamp=clamp)
     return Swarm(position, velocity, options=options)
@@ -981,20 +955,17 @@ def compute_pbest(swarm):
         return (new_pbest_pos, new_pbest_cost)
 
 
-def compute_objective_function(swarm, objective_func, pool=None, **kwargs):
-    if pool is None:
-        return objective_func(swarm.position, **kwargs)
-    else:
-        results = pool.map(
-            partial(objective_func, **kwargs),
-            np.array_split(swarm.position, pool._processes),
-        )
-        return np.concatenate(results)
+def compute_objective_function(swarm, objective_func, **kwargs):
+    return objective_func(swarm.position, **kwargs)
 
 
-# y = 0,003x - 0,2378
-def get_thin_sd_from_dis(dis):
-    return math.fabs(0.003 * dis * 100 - 0.2378)
+# Calculated from the training data
+def get_sd_of_dis(dis):
+    if model == "uwb":
+        # print(dis, math.fabs(0.0000157158329215012*(dis**2.15455644620686)))
+        return math.fabs(0.0000157158329215012*(dis**2.15455644620686))
+    elif model == "ble":
+        return math.fabs(0.003 * dis * 100 - 0.2378)
 
 
 def get_distance(input_nodeA_pos, input_nodeB_pos):
@@ -1048,25 +1019,26 @@ def get_true_positions():
 
 
 def get_ml_pso_solution(input_estimated_node_positions):
-    global node_ids, neighborhoods, estimated_distances_stats, number_of_nodes, global_counter
+    global node_ids, neighborhoods, measured_distances_stats, number_of_nodes, global_counter
 
     # rep.log("input_estimated_Node_positions")
     # rep.log(len(input_estimated_Node_positions))
     # rep.log(input_estimated_Node_positions)
     # rep.log(input_estimated_Node_positions[0])
 
-    if global_counter == 0:
-        # rep.log("Global Counter: " + str(global_counter))
-        # Use this part to override one table
-        input_estimated_node_positions[0] = get_true_positions()
-        global_counter = global_counter + 1
+    # if global_counter == 0:
+    #     # rep.log("Global Counter: " + str(global_counter))
+    #     # Use this part to override one table for debugging
+    #     # Regardless, the 0th evaluation is never considered for estimating and comparing the CL's performance.
+    #     input_estimated_node_positions[0] = get_true_positions()
+    #     global_counter = global_counter + 1
 
     # rep.log("input_estimated_Node_positions")
-    # rep.log(len(input_estimated_Node_positions))
-    # rep.log(input_estimated_Node_positions)
-    # rep.log(input_estimated_Node_positions[0])
+    # rep.log(len(input_estimated_node_positions))
+    # rep.log(input_estimated_node_positions)
+    # rep.log(input_estimated_node_positions[0])
 
-    full_parameters = [input_estimated_node_positions[:, i] for i in range(pos_parameters)]
+    full_parameters = [input_estimated_node_positions[:, i] for i in range(pos_parameters)]  # pos_parameters := all x,y coordinates
 
     # rep.log("full_parameters")
     # rep.log(full_parameters)
@@ -1102,8 +1074,8 @@ def get_ml_pso_solution(input_estimated_node_positions):
             # rep.log(estimated_distance_between_nodes)
 
             neighbor_id = get_node_id_from_tensor_idx(neighbor_tensor_id)
-
-            score = score + (1 / estimated_distances_stats[node_id][neighbor_id][1]) * (estimated_distances_stats[node_id][neighbor_id][0] - estimated_distance_between_nodes) ** 2
+            sd_for_measurement = measured_distances_stats[node_id][neighbor_id][1]
+            score = score + (1 / sd_for_measurement) * (measured_distances_stats[node_id][neighbor_id][0] - estimated_distance_between_nodes) ** 2
 
             # rep.log("node_id: " + str(node_id) + " node_tensor_id: " + str(node_tensor_id) + " neighbor_id: " + str(neighbor_id) + " neighbor_tensor_id: " + str(neighbor_tensor_id) + " score: " + str(score))
 
@@ -1127,13 +1099,13 @@ def get_initial_random_node_pos_from_log_entry(parsed_line):
     x_start_index = find_nth(parsed_line, x_start_flag, 1)
     x_end_flag = ", "
     x_end_index = find_nth(parsed_line, x_end_flag, 3)
-    x_pos = float(parsed_line[x_start_index + len(x_start_flag): x_end_index])
+    x_pos = float(parsed_line[x_start_index + len(x_start_flag): x_end_index].replace(",", "."))
 
     y_start_flag = ", "
     y_start_index = find_nth(parsed_line, y_start_flag, 3)
     y_end_flag = "]"
     y_end_index = find_nth(parsed_line, y_end_flag, 1)
-    y_pos = float(parsed_line[y_start_index + len(y_start_flag): y_end_index])
+    y_pos = float(parsed_line[y_start_index + len(y_start_flag): y_end_index].replace(",", "."))
 
     return [x_pos, y_pos]
 
@@ -1150,6 +1122,10 @@ def get_true_node_pos_from_log_entry(parsed_line):
     y_end_flag = "]"
     y_end_index = find_nth(parsed_line, y_end_flag, 0)
     y_pos = float(parsed_line[y_start_index + len(y_start_flag): y_end_index])
+
+    if model == "uwb":
+        x_pos = x_pos * 100
+        y_pos = y_pos * 100
 
     return [x_pos, y_pos]
 
@@ -1171,8 +1147,9 @@ def unzip_arlcl_results():
                     zipObj.extract(sub_file, path=ARLCL_temp_export_path, pwd=None)
 
 
-def get_init_data(eval_iter):
+def get_initial_positions(eval_iter):
     temp_initial_node_positions = {}
+    temp_initial_node_positions_array = []
     temp_true_node_positions = {}
 
     arlcl_exported_eval_scenario_results_path = ARLCL_temp_export_scenario_path + "/" + str(eval_iter) + "/results.log"
@@ -1181,6 +1158,9 @@ def get_init_data(eval_iter):
 
     with open(arlcl_exported_eval_scenario_results_path, 'r') as input_DB_file:
         for line in input_DB_file:
+
+            # print(line, flush=True)
+
             if line[0:4] == "Node":
                 # rep.log(line.replace("\n", ""))
                 # Get the reference Node ID
@@ -1191,18 +1171,21 @@ def get_init_data(eval_iter):
                 true_position = get_true_node_pos_from_log_entry(line)
 
                 temp_initial_node_positions[node_id] = init_position
+                temp_initial_node_positions_array.append(init_position[0])
+                temp_initial_node_positions_array.append(init_position[1])
+
                 temp_true_node_positions[node_id] = true_position
 
                 # rep.log("Node: " + str(node_id) + ", Pos: " + str(current_pos))
 
-    return temp_initial_node_positions, temp_true_node_positions
+    return np.array(temp_initial_node_positions_array), temp_initial_node_positions, temp_true_node_positions
 
 
 def get_evaluation_measurements(eval_iter):
     global measurement, model, scenario_DB_path
 
     temp_neighbors = {}
-    temp_distances = {}
+    temp_measured_distances = {}
 
     rep.log("Opening " + scenario_DB_path + " to get the evaluation measurements")
 
@@ -1220,7 +1203,7 @@ def get_evaluation_measurements(eval_iter):
                 # Identify the end of current iter section to exit
                 # (to avoid parsing sampled measurements corresponding to other evaluation repetitions)
                 if line == "":
-                    return temp_neighbors, temp_distances
+                    return temp_neighbors, temp_measured_distances
 
                 line_parts = line.split(":")
 
@@ -1230,13 +1213,16 @@ def get_evaluation_measurements(eval_iter):
                     temp_neighbors[nodeA].append(nodeB)
                 else:
                     temp_neighbors[nodeA] = [nodeB]
-                    temp_distances[nodeA] = {}
+                    temp_measured_distances[nodeA] = {}
 
-                current_distance = float(line_parts[1].split("&")[1])
-                temp_distances[nodeA][nodeB] = (current_distance, get_thin_sd_from_dis(current_distance))
+                current_measured_distance = float(line_parts[1].split("&")[1].replace(",", "."))
+
+                # print(current_distance, flush=True)
+
+                temp_measured_distances[nodeA][nodeB] = (current_measured_distance, get_sd_of_dis(current_measured_distance))
 
         # Being here means that we have finished iterating the file
-        return temp_neighbors, temp_distances
+        return temp_neighbors, temp_measured_distances
 
 
 def store_positioning_results(exported_results_filename, resulted_positions):
@@ -1273,18 +1259,17 @@ def get_points_from_results(pos_results):
 
 
 def calculate_swarm_positions(eval_iter, scenario_eval_results_path):
-    global init_positions, true_positions, estimated_distances_stats, neighborhoods, options, particles, optimization_iterations
+    global init_positions, true_positions, measured_distances_stats, neighborhoods, options, particles, optimization_iterations
     # Node positions
-    init_positions, true_positions = get_init_data(eval_iter)
+    initial_node_positions_array, init_positions, true_positions = get_initial_positions(eval_iter)
 
     # rep.log("init_positions")
     # rep.log(init_positions)
-    #
+
     # rep.log("true_positions")
     # rep.log(true_positions)
 
-    # springs, specified as node indices and rest_lengths as weights
-    neighborhoods, estimated_distances_stats = get_evaluation_measurements(eval_iter)
+    neighborhoods, measured_distances_stats = get_evaluation_measurements(eval_iter)
     #
     # rep.log("neighborhoods")
     # rep.log(neighborhoods)
@@ -1292,13 +1277,13 @@ def calculate_swarm_positions(eval_iter, scenario_eval_results_path):
     # rep.log("estimated_distances")
     # rep.log(estimated_distances)
 
-    optimizer = PSO(n_particles=particles, dimensions=pos_parameters, options=options)
+    optimizer = PSO(n_particles=particles, dimensions=pos_parameters, options=options, init_pos=initial_node_positions_array)
 
     # Perform optimization
     cost, pos = optimizer.optimize(get_ml_pso_solution, iters=optimization_iterations, verbose=verbose_logging)
 
     # rep.log("Solution (cost, pos)")
-    # rep.log(cost, pos)
+    # rep.log(pos)
 
     # For plotting the results
     x, y = get_points_from_results(pos)
@@ -1317,7 +1302,7 @@ def file_exists(filepath):
     return False
 
 
-def eval_id_already_available(export, eval_scenario, eval_id):
+def eval_id_already_available(export, eval_scenario):
     filepath = export + eval_scenario
     if os.path.isfile(filepath):
         rep.log("Folder exists")
@@ -1334,7 +1319,7 @@ def delete_folder(path):
 
 
 def run():
-    global true_positions, node_pairs, init_positions, estimated_distances_stats, neighborhoods
+    global true_positions, node_pairs, init_positions, measured_distances_stats, neighborhoods
 
     rep.log("\nCheck whether the final ML_PSO results for current scenario (" + scenario + ") already exist.")
     # Check first whether the final ML_PSO results for this scenario (a zip file) already exist
@@ -1371,7 +1356,7 @@ def run():
         true_positions = {}
         node_pairs = None
         init_positions = None
-        estimated_distances_stats = None
+        measured_distances_stats = None
         neighborhoods = None
 
         rep.log("\nStart optimizing evaluation scenario of ID: " + str(eval_iter))
@@ -1443,6 +1428,7 @@ def set_paths():
     rep.log("ARLCL zipped scenario path: " + ARLCL_zipped_scenario_path)
     rep.log("ARLCL export path: " + ARLCL_temp_export_path)
 
+
 try:
     rep.log("Starting")
     rep.log("\nInput params: ")
@@ -1468,7 +1454,6 @@ try:
     true_positions = None
     number_of_nodes = len(node_ids)
     pos_parameters = number_of_nodes * 2
-
 
     # Set the required paths first
     set_paths()

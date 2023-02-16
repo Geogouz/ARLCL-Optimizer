@@ -19,8 +19,7 @@ end_iter=100 ^
 opts=100000 ^
 learn_rate=1e-3
 
-rem pause
-exit
+rem exit
 
 rem          or.....
 rem ####################################################################################################################
@@ -32,9 +31,9 @@ out="Export/MS/UWB" ^
 arlcl_out="Export/ARLCL/UWB" ^
 db="Examples/UWB-Time_Evaluation-Samples_Engehalde-Floor1 (Examples)/DB" ^
 batch="Examples/UWB-Time_Evaluation-Samples_Engehalde-Floor1 (Examples)/Batch.txt" ^
-scenario_id=3 ^
+scenario_id=0 ^
 model=uwb ^
-seed=3 ^
+seed=0 ^
 end_iter=100 ^
 opts=300000 ^
 learn_rate=1e-2

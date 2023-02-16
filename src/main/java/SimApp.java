@@ -361,6 +361,8 @@ public class SimApp extends Frame {
         SimApp.OrderedByLastCycleOrientation_NodeIDs = new ArrayList<>();
 
         SimApp.stop_optimization = false;
+
+        SimApp.random.setSeed(SimApp.seed);
     }
 
     public SimApp() throws Exception {
@@ -1059,7 +1061,7 @@ public class SimApp extends Frame {
             if (user_selection.contains("UWB")){
                 // System.out.println("User changed to UWB model");
                 // This reset's the parameters to be the same as the ones used in our paper
-                SimApp.min_effective_measurement_inputTextField.setText("60");
+                SimApp.min_effective_measurement_inputTextField.setText("120");
                 SimApp.kNearestNeighbours_for_BeliefsStrength_inputTextField.setText("6");
                 SimApp.initial_Map_Extend_inputTextField.setText("1000");
                 SimApp.seed_inputTextField.setText("0");
