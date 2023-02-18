@@ -79,7 +79,7 @@ public class SimApp extends Frame {
     static CustomTextArea optimization_cycles_LabelArea;
     static CustomTextArea initial_step_size_LabelArea;
     static CustomTextArea min_effective_measurement_value_LabelArea;
-    static CustomTextArea plotResolution_LabelArea;
+    static CustomTextArea plotContours_LabelArea;
     static CustomTextArea ftol_LabelArea;
     static CustomTextArea optimization_iterations_per_thread_LabelArea;
     static CustomTextArea initial_Map_Extend_LabelArea;
@@ -91,7 +91,7 @@ public class SimApp extends Frame {
     static CustomTextField optimization_cycles_inputTextField;
     static CustomTextField initial_step_size_inputTextField;
     static CustomTextField min_effective_measurement_inputTextField;
-    static CustomTextField plotResolution_inputTextField;
+    static CustomTextField plotContours_inputTextField;
     static CustomTextField ftol_inputTextField;
     static CustomTextField optimization_iterations_per_thread_inputTextField;
     static CustomTextField initial_Map_Extend_inputTextField;
@@ -245,11 +245,13 @@ public class SimApp extends Frame {
 
                     if (Core.init()){
                         while (!SimApp.stop_optimization) {
-                            Core.resumeSwarmPositioningInGUIMode();
+//                            System.out.println("Resuming Optimization");
+                            Core.resumeSwarmPositioning();
                             System.gc();
                         }
                     }
                     else{
+                        System.out.println(SimApp.outputTerminal.getText());
                         SimApp.appendToTextArea("Canceling optimization!");
                     }
                 }
@@ -485,22 +487,22 @@ public class SimApp extends Frame {
 
         // This Section is for the Plot Export Properties
         final int export_ProductLikelihood_Label_y = r2_y + r2_height + tiny_gap;
-        SimApp.plotResolution_LabelArea = new CustomTextArea("Contours [0,+]:",1,1, TextArea.SCROLLBARS_NONE);
-        SimApp.plotResolution_LabelArea.setBounds(c2_x, export_ProductLikelihood_Label_y, c2_content_width, small_text_height);
-        SimApp.plotResolution_LabelArea.setBackground(Color.lightGray);
-        SimApp.plotResolution_LabelArea.setEnabled(true);
-        SimApp.plotResolution_LabelArea.setFocusable(false);
-        add((TextArea) SimApp.plotResolution_LabelArea.getTextArea());
+        SimApp.plotContours_LabelArea = new CustomTextArea("Contours [0,+]:",1,1, TextArea.SCROLLBARS_NONE);
+        SimApp.plotContours_LabelArea.setBounds(c2_x, export_ProductLikelihood_Label_y, c2_content_width, small_text_height);
+        SimApp.plotContours_LabelArea.setBackground(Color.lightGray);
+        SimApp.plotContours_LabelArea.setEnabled(true);
+        SimApp.plotContours_LabelArea.setFocusable(false);
+        add((TextArea) SimApp.plotContours_LabelArea.getTextArea());
 
-        final int plotResolution_inputTextArea_y = export_ProductLikelihood_Label_y + small_text_height;
-        SimApp.plotResolution_inputTextField = new CustomTextField("30");
-        SimApp.plotResolution_inputTextField.setBounds(c2_x, plotResolution_inputTextArea_y, c2_content_width, small_text_height);
-        SimApp.plotResolution_inputTextField.addTextListener(
-                new integerGreaterThanBoundEnsurer(SimApp.plotResolution_inputTextField, 0));
-        add((TextField) SimApp.plotResolution_inputTextField.getTextField());
+        final int plotContours_inputTextArea_y = export_ProductLikelihood_Label_y + small_text_height;
+        SimApp.plotContours_inputTextField = new CustomTextField("30");
+        SimApp.plotContours_inputTextField.setBounds(c2_x, plotContours_inputTextArea_y, c2_content_width, small_text_height);
+        SimApp.plotContours_inputTextField.addTextListener(
+                new integerGreaterThanBoundEnsurer(SimApp.plotContours_inputTextField, 0));
+        add((TextField) SimApp.plotContours_inputTextField.getTextField());
 
-        final int export_ProductLikelihood_WolframPlot_function_Label_height = (plotResolution_inputTextArea_y + small_text_height) - export_ProductLikelihood_Label_y;
-        final int export_ProductLikelihood_WolframPlot_function_btn_y = plotResolution_inputTextArea_y - 2;
+        final int export_ProductLikelihood_WolframPlot_function_Label_height = (plotContours_inputTextArea_y + small_text_height) - export_ProductLikelihood_Label_y;
+        final int export_ProductLikelihood_WolframPlot_function_btn_y = plotContours_inputTextArea_y - 2;
         SimApp.export_ProductLikelihood_WolframPlot_function_btn = new CustomCheckbox("Export function", false, null);
         SimApp.export_ProductLikelihood_WolframPlot_function_btn.setBounds(c1_x + tiny_gap, export_ProductLikelihood_WolframPlot_function_btn_y, c1_content_width-tiny_gap, small_text_height);
         add((Checkbox) SimApp.export_ProductLikelihood_WolframPlot_function_btn.getCheckbox());
@@ -769,7 +771,7 @@ public class SimApp extends Frame {
         SimApp.results_per_cycle_btn.setEnabled(state);
         SimApp.ble_model_btn.setEnabled(state);
         SimApp.uwb_model_btn.setEnabled(state);
-        SimApp.plotResolution_inputTextField.setEnabled(state);
+        SimApp.plotContours_inputTextField.setEnabled(state);
         SimApp.export_ProductLikelihood_WolframPlot_function_btn.setEnabled(state);
         SimApp.min_effective_measurement_inputTextField.setEnabled(state);
         SimApp.kNearestNeighbours_for_BeliefsStrength_inputTextField.setEnabled(state);
@@ -896,7 +898,7 @@ public class SimApp extends Frame {
         SimApp.ble_model = SimApp.ble_model_btn.getState();
         SimApp.uwb_model = SimApp.uwb_model_btn.getState();
         SimApp.export_ProductLikelihood_WolframPlot = SimApp.export_ProductLikelihood_WolframPlot_function_btn.getState();
-        SimApp.plotContours = Integer.parseInt(SimApp.plotResolution_inputTextField.getText());
+        SimApp.plotContours = Integer.parseInt(SimApp.plotContours_inputTextField.getText());
 
         // Values
         SimApp.min_effective_measurement = Integer.parseInt(SimApp.min_effective_measurement_inputTextField.getText());
@@ -1178,7 +1180,7 @@ public class SimApp extends Frame {
                                             SimApp.resume_btn.setVisible(false);
 
                                             startTime = System.nanoTime();
-                                            Core.resumeSwarmPositioningInGUIMode();
+                                            Core.resumeSwarmPositioning();
 
                                             // We completed executing this optimization part. If  the auto_resumer_btn is
                                             // not enabled, we are entering a pause state. Therefore, activate the resuming

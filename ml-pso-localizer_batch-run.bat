@@ -6,21 +6,21 @@ set venv_path=%local_path%\venv\Scripts\python.exe
 rem ####################################################################################################################
 rem ===================== Example for executing a BLE-based localization scenario in headless mode =====================
 rem ####################################################################################################################
-%venv_path% "%local_path%\ML-PSO_Localization.py" ^
-log="Export/ML-PSO/BLE" ^
-out="Export/ML-PSO/BLE" ^
-arlcl_out="Export/ARLCL/BLE" ^
-db="Examples/BLE-RSS_Evaluation-Samples_Lecture-Room (Examples)/DB" ^
-batch="Examples/BLE-RSS_Evaluation-Samples_Lecture-Room (Examples)/Batch.txt" ^
-scenario_id=0 ^
-model=ble ^
-seed=0 ^
-end_iter=100 ^
-opts=1000 ^
-particles=500 ^
-c1=0.7 ^
-c2=0.3 ^
-w=0.9
+rem %venv_path% "%local_path%\ML-PSO_Localization.py" ^
+rem log="Export/ML-PSO/BLE" ^
+rem out="Export/ML-PSO/BLE" ^
+rem arlcl_out="Export/ARLCL/BLE" ^
+rem db="Examples/BLE-RSS_Evaluation-Samples_Lecture-Room (Examples)/DB" ^
+rem batch="Examples/BLE-RSS_Evaluation-Samples_Lecture-Room (Examples)/Batch.txt" ^
+rem scenario_id=0 ^
+rem model=ble ^
+rem seed=0 ^
+rem end_iter=100 ^
+rem opts=500 ^
+rem particles=500 ^
+rem c1=0.7 ^
+rem c2=0.3 ^
+rem w=0.9
 
 rem exit
 
@@ -38,7 +38,7 @@ scenario_id=0 ^
 model=uwb ^
 seed=0 ^
 end_iter=100 ^
-opts=500 ^
+opts=1000 ^
 particles=500 ^
 c1=0.7 ^
 c2=0.3 ^

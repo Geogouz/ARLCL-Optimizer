@@ -268,7 +268,7 @@ public class Core {
         return parsed_measurements != 0;
     }
 
-    static void resumeSwarmPositioningInGUIMode() {
+    static void resumeSwarmPositioning() {
 
         // Check if the requested cycles have been reached. Since counting started from 0, we use equality to check.
         if (SimApp.optimization_cycles == SimApp.cycleCounter){
@@ -399,15 +399,11 @@ public class Core {
 
 //        System.out.println("Publishing: " + SimApp.clean_evaluated_scenario_name + " Cycle:" + cycle);
 
-        if (export_plot && SimApp.plotContours != 0){
+        if ((export_plot && SimApp.plotContours != 0) ||
+                (SimApp.headless_mode && (SimApp.optimization_cycles == SimApp.cycleCounter))){
             String NodePos_CMD_filename = Paths.get(
                     SimApp.output_iteration_results_folder_path,
                     "Positions_c" + cycle + "_s" + step + "_n" + currentNode.id + ".txt"
-            ).toString();
-
-            String NodePos_Plot_filename = Paths.get(
-                    SimApp.output_iteration_results_folder_path,
-                    "Positions_c" + cycle + "_s" + step + "_n" + currentNode.id + ".jpeg"
             ).toString();
 
             ArrayList<String>[] mathematica_components_for_plot_sections = collectComponentsForWolframPlotSections(currentNode);
@@ -778,18 +774,35 @@ public class Core {
                     + ";\n\n";
         }
 
-        plot_cmd = plot_cmd + "model = ContourPlot[r[distanceX, distanceY], " +
-                "{distanceX, " + MapField.global_minPlotX + ", " + MapField.global_maxPlotX + "}, " +
-                "{distanceY, " + MapField.global_minPlotY + ", " + MapField.global_maxPlotY + "}, " +
-                "PlotPoints -> {100, 100}, " +
-                "MaxRecursion -> 1, " +
-                "PlotRange -> Full, " +
-                "ClippingStyle -> None, " +
-                "FrameLabel -> {Style[\"X (cm)\", 20, Bold], Style[\"Y (cm)\", 20, Bold]}," +
-                "FrameTicksStyle -> Directive[Black, 15]," +
-                "GridLines -> Automatic," +
-                "GridLinesStyle -> Directive[AbsoluteThickness[0.5], Black]," +
-                "Contours -> {Automatic, " + SimApp.plotContours + "}];\n\n";
+
+        if (SimApp.headless_mode && (SimApp.optimization_cycles == SimApp.cycleCounter)){
+            plot_cmd = plot_cmd + "model = ContourPlot[r[distanceX, distanceY], " +
+                    "{distanceX, " + MapField.global_minPlotX + ", " + MapField.global_maxPlotX + "}, " +
+                    "{distanceY, " + MapField.global_minPlotY + ", " + MapField.global_maxPlotY + "}, " +
+                    "PlotPoints -> {100, 100}, " +
+                    "MaxRecursion -> 1, " +
+                    "PlotRange -> Full, " +
+                    "ClippingStyle -> None, " +
+                    "FrameLabel -> {Style[\"X (cm)\", 20, Bold], Style[\"Y (cm)\", 20, Bold]}," +
+                    "FrameTicksStyle -> Directive[Black, 15]," +
+                    "GridLines -> Automatic," +
+                    "GridLinesStyle -> Directive[AbsoluteThickness[0.5], Black]," +
+                    "Contours -> {Automatic, 30}];\n\n";
+        }
+        else {
+            plot_cmd = plot_cmd + "model = ContourPlot[r[distanceX, distanceY], " +
+                    "{distanceX, " + MapField.global_minPlotX + ", " + MapField.global_maxPlotX + "}, " +
+                    "{distanceY, " + MapField.global_minPlotY + ", " + MapField.global_maxPlotY + "}, " +
+                    "PlotPoints -> {100, 100}, " +
+                    "MaxRecursion -> 1, " +
+                    "PlotRange -> Full, " +
+                    "ClippingStyle -> None, " +
+                    "FrameLabel -> {Style[\"X (cm)\", 20, Bold], Style[\"Y (cm)\", 20, Bold]}," +
+                    "FrameTicksStyle -> Directive[Black, 15]," +
+                    "GridLines -> Automatic," +
+                    "GridLinesStyle -> Directive[AbsoluteThickness[0.5], Black]," +
+                    "Contours -> {Automatic, " + SimApp.plotContours + "}];\n\n";
+        }
 
         return plot_cmd;
     }
