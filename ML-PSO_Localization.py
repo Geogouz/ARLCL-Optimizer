@@ -15,18 +15,15 @@ import zipfile
 import logging
 import logging.config
 import inspect
-from datetime import datetime
 
 import numpy as np
-import multiprocessing as mp
 from tqdm import trange
 from copy import copy
 from collections import deque, namedtuple
 from attr import attrib, attrs
 from attr.validators import instance_of
-from functools import partial
 
-verbose_logging = True
+verbose_logging = False
 
 measurement = {"ble": {"unit": "RSS", "db_ext": ".rss"},
                "uwb": {"unit": "TIME", "db_ext": ".smpl"}}
