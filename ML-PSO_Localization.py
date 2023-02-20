@@ -642,6 +642,7 @@ class PSO(SwarmOptimizer):
         for i in self.rep.pbar(iters, self.name) if verbose else range(iters):
             # Compute cost for current position and personal best
             self.swarm.current_cost = compute_objective_function(self.swarm, objective_func, **kwargs)
+            # print(self.swarm.current_cost)
             self.swarm.pbest_pos, self.swarm.pbest_cost = compute_pbest(self.swarm)
             # Set best_cost_yet_found for ftol
             best_cost_yet_found = self.swarm.best_cost
@@ -960,10 +961,10 @@ def compute_objective_function(swarm, objective_func, **kwargs):
 
 
 # Calculated from the training data
-def get_sd_of_dis(dis):
+def get_var_of_distance(dis):
     if model == "uwb":
         # print(dis, math.fabs(0.0000157158329215012*(dis**2.15455644620686)))
-        return math.fabs(0.0000157158329215012*(dis**2.15455644620686))
+        return math.fabs(0.0000157158329215012 * (dis ** 2.15455644620686))
     elif model == "ble":
         return math.fabs(0.003 * dis * 100 - 0.2378)
 
@@ -1038,10 +1039,12 @@ def get_ml_pso_solution(input_estimated_node_positions):
     # rep.log(input_estimated_node_positions)
     # rep.log(input_estimated_node_positions[0])
 
-    full_parameters = [input_estimated_node_positions[:, i] for i in range(pos_parameters)]  # pos_parameters := all x,y coordinates
+    full_parameters = [input_estimated_node_positions[:, i] for i in
+                       range(all_coord_variables)]  # all_coord_variables := all x,y coordinates
 
-    # rep.log("full_parameters")
-    # rep.log(full_parameters)
+    # print("full_parameters",flush=True)
+    # print(full_parameters, flush=True)
+    # exit()
 
     score = 0
 
@@ -1068,14 +1071,15 @@ def get_ml_pso_solution(input_estimated_node_positions):
 
             # rep.log("NodeA_ID: " + str(node_tensor_id) + " NodeA Pos: " + str(nodeA_pos) + ", NodeB_ID: " + str(neighbor_tensor_id) + " NodeB Pos: " + str(nodeB_pos))
 
-            estimated_distance_between_nodes = get_distance(nodeA_pos, nodeB_pos)
+            evaluated_distance_between_ij = get_distance(nodeA_pos, nodeB_pos)
 
-            # rep.log("estimated_distance_between_nodes")
-            # rep.log(estimated_distance_between_nodes)
+            # rep.log("evaluated_distance_between_ij")
+            # rep.log(evaluated_distance_between_ij)
 
             neighbor_id = get_node_id_from_tensor_idx(neighbor_tensor_id)
-            sd_for_measurement = measured_distances_stats[node_id][neighbor_id][1]
-            score = score + (1 / sd_for_measurement) * (measured_distances_stats[node_id][neighbor_id][0] - estimated_distance_between_nodes) ** 2
+            var_of_distance_measurement = measured_distances_stats[node_id][neighbor_id][1]
+            score = score + (1 / var_of_distance_measurement) * (measured_distances_stats[node_id][neighbor_id][0] - evaluated_distance_between_ij) ** 2
+            # score = score + (measured_distances_stats[node_id][neighbor_id][0] - estimated_distance_between_nodes) ** 2
 
             # rep.log("node_id: " + str(node_id) + " node_tensor_id: " + str(node_tensor_id) + " neighbor_id: " + str(neighbor_id) + " neighbor_tensor_id: " + str(neighbor_tensor_id) + " score: " + str(score))
 
@@ -1147,7 +1151,7 @@ def unzip_arlcl_results():
                     zipObj.extract(sub_file, path=ARLCL_temp_export_path, pwd=None)
 
 
-def get_initial_positions(eval_iter):
+def get_db_positions(eval_iter):
     temp_initial_node_positions = {}
     temp_initial_node_positions_array = []
     temp_true_node_positions = {}
@@ -1219,7 +1223,8 @@ def get_evaluation_measurements(eval_iter):
 
                 # print(current_distance, flush=True)
 
-                temp_measured_distances[nodeA][nodeB] = (current_measured_distance, get_sd_of_dis(current_measured_distance))
+                temp_measured_distances[nodeA][nodeB] = (
+                current_measured_distance, get_var_of_distance(current_measured_distance))
 
         # Being here means that we have finished iterating the file
         return temp_neighbors, temp_measured_distances
@@ -1258,40 +1263,88 @@ def get_points_from_results(pos_results):
     return temp_x, temp_y
 
 
+# Define the objective function to be minimized
+def objective_function(x):
+
+    global number_of_nodes, particles, measured_distances_stats, neighborhoods
+
+    # print(x, flush=True)
+    # print(len(x[0]), flush=True)
+
+    errors = np.zeros(particles)
+    # print("errors", flush=True)
+    # print(errors, flush=True)
+
+    # We have a new guess about the nodes' positions and we need to get the cross distances under this specific setting
+    # Remember that the ID's start from 0. We have another data structure mapping to the real ID's
+    for node_tensor_id in range(number_of_nodes):
+
+        # Get the original nodeID that corresponds to current node_tensor_id
+        node_id = get_node_id_from_tensor_idx(node_tensor_id)
+        # rep.log("Node: " + str(node_id))
+        # rep.log("Total neighborhoods[node_id] (" + str(len(neighborhoods[node_id])) + "):")
+        # rep.log(neighborhoods[node_id])
+
+        for neighbor_tensor_id in [get_tensor_idx_from_node_id(neighbor) for neighbor in neighborhoods[node_id]]:
+
+            # Get the original nodeID that corresponds to current neighbor_tensor_id
+            neighbor_id = get_node_id_from_tensor_idx(neighbor_tensor_id)
+
+            var_of_distance_measurement = measured_distances_stats[node_id][neighbor_id][1]
+
+            # rep.log("len(input_estimated_Node_positions)")
+            # rep.log(len(input_estimated_Node_positions))
+
+            # rep.log("len(input_estimated_Node_positions[0])")
+            # rep.log(len(input_estimated_Node_positions[0]))
+
+            # rep.log("input_estimated_Node_positions[0]")
+            # rep.log(input_estimated_Node_positions[0])
+
+            # The distance between i,j across all particles (sets) in an array
+            evaluated_distance_between_ij = np.sqrt(
+                (x[:, node_tensor_id*2] - x[:, neighbor_tensor_id*2])**2 +
+                (x[:, node_tensor_id*2+1] - x[:, neighbor_tensor_id*2+1])**2
+            )
+            # rep.log("evaluated_distance_between_ij")
+            # rep.log(evaluated_distance_between_ij)
+
+            # print(node_tensor_id, neighbor_tensor_id, evaluated_distance_between_ij, flush=True)
+
+            errors += (1 / var_of_distance_measurement) * (evaluated_distance_between_ij - measured_distances_stats[node_id][neighbor_id][0]) ** 2
+
+    return errors
+
+
 def calculate_swarm_positions(eval_iter, scenario_eval_results_path):
     global init_positions, true_positions, measured_distances_stats, neighborhoods, options, particles, optimization_iterations
     # Node positions
-    initial_node_positions_array, init_positions, true_positions = get_initial_positions(eval_iter)
+    initial_node_positions_array, init_positions, true_positions = get_db_positions(eval_iter)
 
-    # rep.log("init_positions")
-    # rep.log(init_positions)
+    rep.log("init_positions")
+    rep.log(init_positions)
 
-    # rep.log("true_positions")
-    # rep.log(true_positions)
+    rep.log("true_positions")
+    rep.log(true_positions)
 
     neighborhoods, measured_distances_stats = get_evaluation_measurements(eval_iter)
-    #
+
     # rep.log("neighborhoods")
     # rep.log(neighborhoods)
 
     # rep.log("estimated_distances")
     # rep.log(estimated_distances)
 
-    optimizer = PSO(n_particles=particles, dimensions=pos_parameters, options=options, init_pos=initial_node_positions_array)
+    optimizer = PSO(n_particles=particles, dimensions=all_coord_variables, options=options, init_pos=initial_node_positions_array)
 
     # Perform optimization
     cost, pos = optimizer.optimize(get_ml_pso_solution, iters=optimization_iterations, verbose=verbose_logging)
 
     # rep.log("Solution (cost, pos)")
-    # rep.log(pos)
+    # rep.log(cost)
 
     # For plotting the results
     x, y = get_points_from_results(pos)
-    # plt.scatter(x, y)
-    # plt.gca().set_aspect('equal', adjustable='box')
-    # plt.show()
-
-    # return
 
     store_positioning_results(scenario_eval_results_path, (x, y))
 
@@ -1453,7 +1506,7 @@ try:
 
     true_positions = None
     number_of_nodes = len(node_ids)
-    pos_parameters = number_of_nodes * 2
+    all_coord_variables = number_of_nodes * 2
 
     # Set the required paths first
     set_paths()
