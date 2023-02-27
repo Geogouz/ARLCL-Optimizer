@@ -23,7 +23,7 @@ from collections import deque, namedtuple
 from attr import attrib, attrs
 from attr.validators import instance_of
 
-verbose_logging = False
+verbose_logging = True
 
 measurement = {"ble": {"unit": "RSS", "db_ext": ".rss"},
                "uwb": {"unit": "TIME", "db_ext": ".smpl"}}
